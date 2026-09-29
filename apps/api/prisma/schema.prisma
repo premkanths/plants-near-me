@@ -1,0 +1,23 @@
+// E-PlantShopping 2.0 - Prisma schema
+// Step 1: connection + PostGIS-ready setup only. The full domain model lands in Step 2.
+// Note (Prisma 7): the connection URL lives in prisma.config.ts, not here.
+
+generator client {
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  extensions = [postgis, pg_trgm]
+}
+
+/// Minimal placeholder model so `prisma migrate` has something to create.
+/// Replaced by the real domain model in Step 2.
+model HealthCheck {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+
+  @@map("health_checks")
+}

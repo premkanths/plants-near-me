@@ -1,0 +1,31 @@
+{
+  "name": "e-plantshopping-2",
+  "version": "0.1.0",
+  "private": true,
+  "description": "E-PlantShopping 2.0 - Multi-Vendor Plant Marketplace (monorepo)",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n api,web -c cyan,green \"npm run dev -w @eplant/api\" \"npm run dev -w @eplant/web\"",
+    "dev:api": "npm run dev -w @eplant/api",
+    "dev:web": "npm run dev -w @eplant/web",
+    "build": "npm run build -w @eplant/api && npm run build -w @eplant/web",
+    "lint": "npm run lint -w @eplant/api && npm run lint -w @eplant/web",
+    "test": "npm run test -w @eplant/api",
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,md,yml,yaml}\"",
+    "db:up": "docker compose up -d db",
+    "db:down": "docker compose down",
+    "db:reset": "docker compose down -v && docker compose up -d db",
+    "db:migrate": "npm run prisma:migrate -w @eplant/api",
+    "db:generate": "npm run prisma:generate -w @eplant/api",
+    "db:studio": "npm run prisma:studio -w @eplant/api"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "prettier": "^3.5.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

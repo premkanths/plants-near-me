@@ -1,0 +1,38 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# builds
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# env
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# test / logs
+coverage/
+*.log
+npm-debug.log*
+
+# editors / os
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# prisma
+apps/api/prisma/*.db
+
+# uploads
+uploads/
+
+# prisma generated client
+apps/api/src/generated/
