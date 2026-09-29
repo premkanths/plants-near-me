@@ -36,3 +36,6 @@ uploads/
 
 # prisma generated client
 apps/api/src/generated/
+
+# local PGlite database (no-docker fallback)
+.pglite/

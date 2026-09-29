@@ -58,9 +58,34 @@ npm run db:up            # docker compose up -d db
 # 4. Create the database schema
 npm run db:migrate       # prisma migrate dev
 
-# 5. Run both apps (API :3001, web :3000)
+# 5. Load demo data (5 Bengaluru vendors, 20 plants, ~38 products)
+npm run db:seed
+
+# 6. Run both apps (API :3001, web :3000)
 npm run dev
 ```
+
+### No Docker? Use the built-in local database
+
+`npm run db:local` starts PGlite (PostgreSQL compiled to WASM) with **PostGIS and
+pg_trgm** on port 5432 — a drop-in replacement for the Docker container:
+
+```bash
+npm run db:local &                     # listens on 0.0.0.0:5432, data in .pglite/
+# set DATABASE_URL="postgresql://postgres:postgres@localhost:5432/postgres?schema=public"
+npm run db:migrate && npm run db:seed
+```
+
+### Demo accounts (after seeding)
+
+| Role     | Email                  | Password       |
+| -------- | ---------------------- | -------------- |
+| Admin    | `admin@eplant.test`    | `Password123!` |
+| Customer | `customer@eplant.test` | `Password123!` |
+| Vendor   | `lalbagh@eplant.test`  | `Password123!` |
+
+(Vendor `hebbal@eplant.test` is intentionally left **unapproved** to exercise the
+admin approval flow.)
 
 Open <http://localhost:3000> — the home page shows live API / PostgreSQL / PostGIS status.
 Adminer (DB browser) is available with `docker compose up -d adminer` at <http://localhost:8080>
@@ -107,6 +132,45 @@ Expected healthy response:
 If the DB is not running you get `"status": "degraded"` with `db.status: "down"` — by design,
 the API stays up so the frontend can show a meaningful status instead of a blank error.
 
+## Data model (Step 2)
+
+Full **[ER diagram + design notes → `docs/er-diagram.md`](./docs/er-diagram.md)**.
+
+15 tables: `users`, `vendors`, `categories`, `vendor_categories`, `plants`,
+`plant_categories`, `products`, `carts`, `cart_items`, `master_orders`,
+`vendor_orders`, `order_items`, `payments`, `reviews` (+ PostGIS `spatial_ref_sys`).
+
+Things worth knowing:
+
+- **PostGIS**: `vendors.location` is `geography(Point,4326)` with a **GiST index**.
+  A `BEFORE INSERT/UPDATE` trigger derives it from `latitude`/`longitude`, so
+  application code (and Prisma, which can't write PostGIS types) only sets lat/lng.
+- **pg_trgm**: GIN trigram indexes on `plants.common_name`, `plants.scientific_name`
+  and `products.title` — typo-tolerant search is ready for Step 6
+  (`"snak plnt"` → Snake Plant, `"hibiscas"` → Hibiscus).
+- **Money** is `DECIMAL(10,2)`, never float.
+- **CHECK constraints**: rating 1–5, non-negative stock/price, positive quantities.
+- **Order history is immutable**: `order_items` snapshot title/price, and products
+  referenced by an order can't be deleted (`ON DELETE RESTRICT`).
+
+### Verify Step 2
+
+```bash
+npm run db:migrate && npm run db:seed   # seed is idempotent — safe to re-run
+
+# nearby vendors (the Step 5 query, tested today)
+psql "$DATABASE_URL" -c "SELECT name, ROUND((ST_Distance(location,
+  ST_SetSRID(ST_MakePoint(77.6045,12.9758),4326)::geography)/1000)::numeric,2) AS km
+  FROM vendors WHERE ST_DWithin(location,
+  ST_SetSRID(ST_MakePoint(77.6045,12.9758),4326)::geography, 6000) ORDER BY km;"
+```
+
+```
+Lalbagh Green Nursery      3.50 km
+Indiranagar Urban Jungle   3.95 km
+Jayanagar Flower Bazaar    5.74 km
+```
+
 ## Useful scripts
 
 | Command              | What it does                        |
@@ -140,7 +204,7 @@ See [`.env.example`](./.env.example). Step 1 only needs:
 ## Roadmap
 
 - [x] **Step 1** — Monorepo, Docker/PostGIS, Prisma, health check, lint/format
-- [ ] **Step 2** — Database schema, migrations, seed data, ER diagram
+- [x] **Step 2** — Database schema, migrations, seed data, ER diagram
 - [ ] **Step 3** — Auth & role-based access
 - [ ] **Step 4** — Vendor dashboard & product CRUD
 - [ ] **Step 5** — Nearby nursery discovery (PostGIS + Leaflet)
