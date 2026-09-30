@@ -19,6 +19,10 @@ export async function SiteHeader() {
         </Link>
 
         <nav className="flex items-center gap-3 text-sm">
+          <Link href="/nearby" className="text-zinc-600 hover:text-emerald-600 dark:text-zinc-300">
+            Nearby
+          </Link>
+
           {user ? (
             <>
               {user.role === 'VENDOR' && (

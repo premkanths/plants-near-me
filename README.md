@@ -244,6 +244,46 @@ npm run test -w @eplant/api      # 24 unit tests (10 ownership-focused)
 npm run test:e2e -w @eplant/api  # 38 e2e tests
 ```
 
+## Nearby discovery (Step 5)
+
+| Endpoint                 | Purpose                                                   |
+| ------------------------ | --------------------------------------------------------- |
+| `GET /api/nearby/vendors`  | Shops inside a radius, nearest first                      |
+| `GET /api/nearby/products` | In-stock listings from nearby shops                       |
+| `GET /api/shops/:slug`     | Public shop page (distance included when lat/lng is sent) |
+
+All three are public. Query params: `lat`, `lng` (required), `radiusKm` (≤ 50),
+`deliverableOnly`, `category`, `q`, `maxPrice`, `sort`, `page`, `pageSize`.
+
+```bash
+curl "http://localhost:3001/api/nearby/vendors?lat=12.9758&lng=77.6045&radiusKm=5"
+```
+
+**How the spatial query works.** `ST_DWithin` does the filtering — it is the only
+form PostGIS can answer with the GiST index on `vendors.location`:
+
+```
+Index Scan using vendors_location_gist_idx on vendors v
+  Index Cond: (location && _st_expand(<origin>, 5000))
+```
+
+`ST_Distance` then runs only on the surviving rows, for display and ordering.
+Writing `ST_Distance(...) <= 5000` in the `WHERE` clause instead would return the
+same rows but force a sequential scan, so the two are not interchangeable.
+`deliversToYou` is a second `ST_DWithin` against each vendor's *own*
+`delivery_radius_km`, which is why a 6 km-away shop can still deliver while a
+4 km-away one cannot.
+
+Pages: `/nearby` (Leaflet + OpenStreetMap map beside a synced result list,
+geolocation, radius slider, click-to-move pin) and `/shops/[slug]`.
+
+### Verify Step 5
+
+```bash
+npm run test -w @eplant/api      # 40 unit tests (16 for discovery)
+npm run test:e2e -w @eplant/api  # 66 e2e tests (28 for discovery)
+```
+
 ## Useful scripts
 
 | Command              | What it does                        |
@@ -280,7 +320,7 @@ See [`.env.example`](./.env.example). Step 1 only needs:
 - [x] **Step 2** — Database schema, migrations, seed data, ER diagram
 - [x] **Step 3** — Auth & role-based access (JWT + guards + BFF cookies)
 - [x] **Step 4** — Vendor dashboard & product CRUD
-- [ ] **Step 5** — Nearby nursery discovery (PostGIS + Leaflet)
+- [x] **Step 5** — Nearby nursery discovery (PostGIS + Leaflet)
 - [ ] **Step 6** — Search (full-text + `pg_trgm`)
 - [ ] **Step 7** — Cart & multi-vendor checkout
 - [ ] **Step 8** — Order status & realtime tracking

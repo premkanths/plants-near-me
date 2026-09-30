@@ -31,8 +31,7 @@ npm-debug.log*
 # prisma
 apps/api/prisma/*.db
 
-# uploads
-uploads/
+# uploads (runtime only - see apps/api/uploads below; never ignore src/)
 
 # prisma generated client
 apps/api/src/generated/

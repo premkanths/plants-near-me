@@ -8,7 +8,7 @@ const roadmap = [
   { step: 2, title: 'Database schema + PostGIS + seed', done: true },
   { step: 3, title: 'Auth & roles (JWT)', done: true },
   { step: 4, title: 'Vendor dashboard', done: true },
-  { step: 5, title: 'Nearby nursery discovery', done: false },
+  { step: 5, title: 'Nearby nursery discovery', done: true },
 ];
 
 export default async function Home() {
@@ -25,6 +25,13 @@ export default async function Home() {
           Find nurseries near you, shop across vendors, track every order.
         </p>
       </header>
+
+      <a
+        href="/nearby"
+        className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-medium text-white transition hover:bg-emerald-700"
+      >
+        📍 Find nurseries near me
+      </a>
 
       <HealthCard initial={health} />
 
