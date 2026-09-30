@@ -10,7 +10,7 @@ Find nurseries near you, shop across multiple vendors in one cart, and track eve
 | ORM      | Prisma 7 (driver adapter: `@prisma/adapter-pg`)             |
 | Maps     | Leaflet + OpenStreetMap _(Step 5)_                          |
 | Auth     | JWT (access+refresh) + role guards (CUSTOMER / VENDOR / ADMIN) |
-| Realtime | Socket.IO _(Step 8)_                                        |
+| Realtime | Socket.IO                                                   |
 | Payments | Razorpay test mode _(Step 9)_                               |
 | Images   | Cloudinary _(Step 4)_                                       |
 | AI       | Plant.id / PlantNet + LLM API _(Steps 12–13)_               |
@@ -376,6 +376,100 @@ Two of the e2e tests are the interesting ones: `lets exactly one of two
 simultaneous checkouts win` (last unit in stock, two buyers, expects `[201, 409]`)
 and `never oversells under a burst of concurrent buyers`.
 
+## Order status & realtime (Step 8)
+
+Each shop moves its own slice of an order through a state machine; the customer
+watches it happen over a websocket.
+
+```
+ORDERED ──accept──▶ ACCEPTED ──▶ PACKING ──▶ READY_FOR_PICKUP
+   │                                              │
+   └──reject──▶ REJECTED (terminal)               ▼
+                                       OUT_FOR_DELIVERY ──▶ DELIVERED (terminal)
+```
+
+The table lives in [`apps/api/src/orders/order-status.ts`](./apps/api/src/orders/order-status.ts)
+and is the single source of truth: the API enforces it, the tests assert it, and
+the vendor's buttons are rendered from the `allowedNext` array the API returns —
+so the UI can never offer a move the server would reject with a 400.
+
+**The master order has no status of its own.** It is derived from its children
+every time one of them moves, so a partly rejected order cannot drift out of
+sync:
+
+| Vendor slices                 | Master order        |
+| ----------------------------- | ------------------- |
+| all still working             | `PLACED`            |
+| all delivered                 | `COMPLETED`         |
+| all rejected                  | `CANCELLED`         |
+| mixed, or one finished early  | `PARTIALLY_FULFILLED` |
+
+Rejecting a slice **returns its stock to the shelf** inside the same
+transaction that writes the status — otherwise units reserved at checkout would
+be lost forever.
+
+### Endpoints
+
+| Method | Path                             | Role     | Purpose                              |
+| ------ | -------------------------------- | -------- | ------------------------------------ |
+| GET    | `/api/vendor/orders?status=`     | VENDOR   | The shop's queue (own slices only)   |
+| GET    | `/api/vendor/orders/stats`       | VENDOR   | Counts + delivered revenue           |
+| GET    | `/api/vendor/orders/:id`         | VENDOR   | One slice, with the delivery address |
+| PATCH  | `/api/vendor/orders/:id/status`  | VENDOR   | Advance it; `reason` required to reject |
+| POST   | `/api/realtime/ticket`           | any user | Mint a socket handshake ticket       |
+
+### Websocket authentication
+
+The access token is httpOnly and belongs to the **web** origin, so browser JS
+cannot read it and it is never sent to the API origin. Instead the browser asks
+its own BFF for a **single-use, 60-second ticket** and presents that in the
+handshake. A stolen ticket is worth one minute of read-only access to rooms the
+user could already see.
+
+Rooms: `user:<id>`, `vendor:<id>`, `order:<masterOrderId>`. Joining an order
+room is authorised against the database, so a socket cannot watch a stranger's
+order. All the rooms for one event are passed to `to()` in a single call, so a
+customer who is in two of them still receives exactly one copy.
+
+| Event               | Direction       | When                                  |
+| ------------------- | --------------- | ------------------------------------- |
+| `ready`             | server → client | Handshake accepted                    |
+| `watchOrder`        | client → server | Subscribe to one order (acked)        |
+| `order.created`     | server → vendor | A new order lands in the shop's queue |
+| `order.status`      | server → client | A slice changed status                |
+| `delivery.position` | server → client | Simulated driver moved                |
+
+Events are emitted **after** the transaction commits, so a listener never sees a
+state the database does not already hold, and a dropped socket can never fail
+the HTTP request that caused the change.
+
+### Simulated delivery
+
+Marking a slice `OUT_FOR_DELIVERY` dispatches a stand-in driver: a timer
+interpolates a straight line from the shop to the delivery address, emits
+`delivery.position` every 3 s for ~45 s, then marks the order `DELIVERED`.
+Real couriers would post GPS fixes to the same channel and a queue worker would
+close the order; the timer keeps the demo self-contained.
+
+Pages: `/vendor/orders` (live queue with action buttons) and the tracker on
+`/orders/[id]`.
+
+> The socket connects to the API origin directly, because a Next.js route
+> handler cannot proxy a websocket upgrade. It is derived from the page origin
+> (`:3000` → `:3001`) and can be overridden with `NEXT_PUBLIC_API_WS_URL`.
+
+### Verify Step 8
+
+```bash
+npm run test -w @eplant/api      # 141 unit tests (49 for the machine + realtime)
+npm run test:e2e -w @eplant/api  # 145 e2e tests (30 for status + sockets)
+```
+
+The e2e suite drives a real order with a real socket attached: it asserts
+illegal transitions are refused, one shop cannot touch another's slice, a
+rejection restocks, the master status is derived correctly, and a replayed
+ticket is rejected.
+
 ## Useful scripts
 
 | Command              | What it does                        |
@@ -415,7 +509,7 @@ See [`.env.example`](./.env.example). Step 1 only needs:
 - [x] **Step 5** — Nearby nursery discovery (PostGIS + Leaflet)
 - [x] **Step 6** — Search (full-text + `pg_trgm`)
 - [x] **Step 7** — Cart & multi-vendor checkout
-- [ ] **Step 8** — Order status & realtime tracking
+- [x] **Step 8** — Order status & realtime tracking
 - [ ] **Step 9** — Payments (Razorpay)
 - [ ] **Step 10** — Reviews & ratings
 - [ ] **Step 11** — Admin panel & analytics

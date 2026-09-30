@@ -8,6 +8,7 @@ import {
 import { randomBytes } from 'node:crypto';
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { RealtimeService } from '../realtime/realtime.service';
 import type { CheckoutDto } from './dto/checkout.dto';
 
 /** Row shape returned by the locking SELECT. */
@@ -41,7 +42,10 @@ const money = (value: string | number | Prisma.Decimal) => new Prisma.Decimal(va
 export class OrdersService {
   private readonly logger = new Logger(OrdersService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly realtime: RealtimeService,
+  ) {}
 
   /**
    * Turns a cart into one MasterOrder plus one VendorOrder per shop, atomically.
@@ -59,7 +63,7 @@ export class OrdersService {
    * order, no stock leaked, cart untouched.
    */
   async checkout(userId: string, dto: CheckoutDto) {
-    return this.prisma.$transaction(
+    const placed = await this.prisma.$transaction(
       async (tx) => {
         const cart = await tx.cart.findUnique({
           where: { userId },
@@ -252,6 +256,23 @@ export class OrdersService {
         timeout: 15_000,
       },
     );
+
+    // Ring the bell in each shop's dashboard, once the transaction has
+    // committed so nobody can fetch an order that does not exist yet.
+    if (placed) {
+      for (const vendorOrder of placed.vendorOrders) {
+        this.realtime.emit(RealtimeService.vendorRoom(vendorOrder.vendor.id), 'order.created', {
+          vendorOrderId: vendorOrder.id,
+          orderNumber: vendorOrder.orderNumber,
+          masterOrderId: placed.id,
+          total: vendorOrder.total,
+          itemCount: vendorOrder.items.length,
+          at: new Date().toISOString(),
+        });
+      }
+    }
+
+    return placed;
   }
 
   /** A customer's own order history, newest first. */
@@ -337,6 +358,8 @@ export class OrdersService {
             itemsTotal: true,
             deliveryFee: true,
             total: true,
+            rejectionReason: true,
+            deliveredAt: true,
             vendor: { select: { id: true, name: true, slug: true, phone: true } },
             items: {
               select: {

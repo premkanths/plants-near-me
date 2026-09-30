@@ -70,6 +70,8 @@ export interface VendorOrder {
   itemsTotal: string;
   deliveryFee: string;
   total: string;
+  rejectionReason: string | null;
+  deliveredAt: string | null;
   vendor: { id: string; name: string; slug: string; phone: string | null };
   items: OrderItem[];
 }

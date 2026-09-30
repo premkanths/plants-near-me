@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { PrismaService } from '../prisma/prisma.service';
+import { RealtimeService } from '../realtime/realtime.service';
 import type { CheckoutDto } from './dto/checkout.dto';
 import { CheckoutConflictException, OrdersService } from './orders.service';
 
@@ -77,7 +78,11 @@ describe('OrdersService', () => {
     };
 
     const moduleRef = await Test.createTestingModule({
-      providers: [OrdersService, { provide: PrismaService, useValue: prisma }],
+      providers: [
+        OrdersService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: RealtimeService, useValue: { emit: jest.fn(), emitToMany: jest.fn() } },
+      ],
     }).compile();
 
     service = moduleRef.get(OrdersService);

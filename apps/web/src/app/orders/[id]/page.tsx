@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { OrderTracker } from '@/components/orders/OrderTracker';
 import { notFound } from 'next/navigation';
 import { ORDER_STATUS_LABEL, STATUS_TONE, type Order } from '@/lib/cart-types';
 import { serverApiSafe } from '@/lib/server-api';
@@ -47,6 +48,17 @@ export default async function OrderPage({
           {ORDER_STATUS_LABEL[order.status]}
         </span>
       </header>
+
+      <OrderTracker
+        masterOrderId={order.id}
+        initial={order.vendorOrders.map((vendorOrder) => ({
+          id: vendorOrder.id,
+          orderNumber: vendorOrder.orderNumber,
+          vendorName: vendorOrder.vendor.name,
+          status: vendorOrder.status,
+          rejectionReason: vendorOrder.rejectionReason ?? null,
+        }))}
+      />
 
       <section className="mt-6 space-y-4">
         {order.vendorOrders.map((vendorOrder) => (

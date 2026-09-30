@@ -9,6 +9,7 @@ import { PlantsModule } from './plants/plants.module';
 import { OrdersModule } from './orders/orders.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ProductsModule } from './products/products.module';
+import { RealtimeModule } from './realtime/realtime.module';
 import { SearchModule } from './search/search.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { VendorsModule } from './vendors/vendors.module';
@@ -25,6 +26,7 @@ import { VendorsModule } from './vendors/vendors.module';
     HealthModule,
     DiscoveryModule,
     SearchModule,
+    RealtimeModule,
     CartModule,
     OrdersModule,
     VendorsModule,

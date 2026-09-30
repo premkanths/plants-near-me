@@ -59,6 +59,12 @@ export default async function VendorDashboardPage() {
         </div>
         <div className="flex gap-2">
           <Link
+            href="/vendor/orders"
+            className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+          >
+            Orders
+          </Link>
+          <Link
             href="/vendor/settings"
             className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
           >
