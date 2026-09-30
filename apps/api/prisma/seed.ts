@@ -140,7 +140,15 @@ async function main(): Promise<void> {
         where: {
           vendorId_plantId_potSize: { vendorId: row.id, plantId: plant.id, potSize },
         },
-        update: { price, stock: 5 + (noise % 40) },
+        // Reset the display fields too, so re-seeding is a genuine reset after
+        // tests or manual edits have mutated a listing.
+        update: {
+          title: `${plant.commonName} (${potSize} pot)`,
+          description: `${plant.commonName} grown and hardened at ${vendor.name}.`,
+          price,
+          stock: 5 + (noise % 40),
+          active: true,
+        },
         create: {
           vendorId: row.id,
           plantId: plant.id,

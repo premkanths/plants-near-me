@@ -11,6 +11,7 @@ import {
   type SearchResponse,
 } from '@/lib/search-types';
 import { rupees } from '@/lib/vendor-types';
+import { AddToCartButton } from '@/components/cart/AddToCartButton';
 import { SearchBox } from './SearchBox';
 
 type Sort = 'relevance' | 'price_asc' | 'price_desc' | 'distance' | 'rating';
@@ -415,6 +416,10 @@ function ResultCard({ item }: { item: SearchItem }) {
           {item.vendor.name}
           {item.distanceKm !== null && ` · ${item.distanceKm} km`}
         </Link>
+
+        <div className="mt-3">
+          <AddToCartButton productId={item.id} disabled={item.stock === 0} />
+        </div>
       </div>
     </li>
   );

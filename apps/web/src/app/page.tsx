@@ -10,6 +10,7 @@ const roadmap = [
   { step: 4, title: 'Vendor dashboard', done: true },
   { step: 5, title: 'Nearby nursery discovery', done: true },
   { step: 6, title: 'Search & filters (FTS + trigram)', done: true },
+  { step: 7, title: 'Cart & multi-vendor checkout', done: true },
 ];
 
 export default async function Home() {

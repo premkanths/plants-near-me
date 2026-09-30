@@ -13,6 +13,9 @@ const PROTECTED: { prefix: string; roles: Role[] }[] = [
   { prefix: '/vendor', roles: ['VENDOR'] },
   { prefix: '/admin', roles: ['ADMIN'] },
   { prefix: '/account', roles: ['CUSTOMER', 'VENDOR', 'ADMIN'] },
+  { prefix: '/cart', roles: ['CUSTOMER'] },
+  { prefix: '/checkout', roles: ['CUSTOMER'] },
+  { prefix: '/orders', roles: ['CUSTOMER'] },
 ];
 
 const GUEST_ONLY = ['/login', '/register'];
@@ -54,5 +57,14 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/vendor/:path*', '/admin/:path*', '/account/:path*', '/login', '/register'],
+  matcher: [
+    '/vendor/:path*',
+    '/admin/:path*',
+    '/account/:path*',
+    '/cart/:path*',
+    '/checkout/:path*',
+    '/orders/:path*',
+    '/login',
+    '/register',
+  ],
 };

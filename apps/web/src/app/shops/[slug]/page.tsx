@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { distanceLabel, type ShopDetail } from '@/lib/discovery-types';
 import { serverApiSafe } from '@/lib/server-api';
 import { rupees } from '@/lib/vendor-types';
+import { AddToCartButton } from '@/components/cart/AddToCartButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -101,6 +102,9 @@ export default async function ShopPage({
               <span className="text-xs text-zinc-500">
                 {product.stock <= 5 ? `Only ${product.stock} left` : 'In stock'}
               </span>
+            </div>
+            <div className="mt-3">
+              <AddToCartButton productId={product.id} />
             </div>
           </li>
         ))}

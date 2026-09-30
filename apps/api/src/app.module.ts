@@ -1,10 +1,12 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
+import { CartModule } from './cart/cart.module';
 import { DiscoveryModule } from './discovery/discovery.module';
 import { validateEnv } from './config/env.validation';
 import { HealthModule } from './health/health.module';
 import { PlantsModule } from './plants/plants.module';
+import { OrdersModule } from './orders/orders.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ProductsModule } from './products/products.module';
 import { SearchModule } from './search/search.module';
@@ -23,6 +25,8 @@ import { VendorsModule } from './vendors/vendors.module';
     HealthModule,
     DiscoveryModule,
     SearchModule,
+    CartModule,
+    OrdersModule,
     VendorsModule,
     ProductsModule,
     PlantsModule,

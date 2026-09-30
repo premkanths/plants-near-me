@@ -327,6 +327,55 @@ npm run test -w @eplant/api      # 57 unit tests (17 for search)
 npm run test:e2e -w @eplant/api  # 92 e2e tests (26 for search)
 ```
 
+## Cart & multi-vendor checkout (Step 7)
+
+| Endpoint                        | Role     | Purpose                            |
+| ------------------------------- | -------- | ---------------------------------- |
+| `GET    /api/cart`              | CUSTOMER | Cart grouped by vendor, with issues |
+| `POST   /api/cart/items`        | CUSTOMER | Add (tops up an existing line)      |
+| `PATCH  /api/cart/items/:id`    | CUSTOMER | Change quantity                     |
+| `DELETE /api/cart/items/:id`    | CUSTOMER | Remove a line                       |
+| `DELETE /api/cart`              | CUSTOMER | Empty the cart                      |
+| `POST   /api/orders/checkout`   | CUSTOMER | Place the order (COD for now)       |
+| `GET    /api/orders`            | CUSTOMER | Own order history                   |
+| `GET    /api/orders/:id`        | CUSTOMER | Own order detail                    |
+
+One cart becomes **one `MasterOrder` + one `VendorOrder` per shop**, each with
+its own number (`EP-260930-4F2A9C`, `…-V1`, `…-V2`), its own delivery fee and
+its own status, so shops fulfil independently while the customer sees a single
+order.
+
+**The whole checkout is one transaction:**
+
+1. `SELECT … FOR UPDATE` locks every product in the cart, **ordered by id** —
+   the deterministic order is what stops two concurrent checkouts deadlocking;
+2. availability, shop status and per-shop minimums are re-checked against the
+   locked rows (the cart preview can be minutes stale);
+3. stock is decremented with a guarded `UPDATE … WHERE stock >= qty`;
+4. the order tree and its price/title snapshots are written;
+5. the cart is emptied.
+
+Any failure throws, and Postgres rolls back all of it — no half-placed order,
+no leaked stock, cart untouched. Conflicts come back as **409** listing *every*
+problem at once, not one per retry.
+
+Isolation is Read Committed plus explicit row locks rather than Serializable:
+the locks already make the read-modify-write safe, without exposing customers
+to random serialization failures.
+
+Pages: `/cart`, `/checkout`, `/orders`, `/orders/[id]`.
+
+### Verify Step 7
+
+```bash
+npm run test -w @eplant/api      # 92 unit tests (35 for cart + checkout)
+npm run test:e2e -w @eplant/api  # 115 e2e tests (23 for cart + checkout)
+```
+
+Two of the e2e tests are the interesting ones: `lets exactly one of two
+simultaneous checkouts win` (last unit in stock, two buyers, expects `[201, 409]`)
+and `never oversells under a burst of concurrent buyers`.
+
 ## Useful scripts
 
 | Command              | What it does                        |
@@ -365,7 +414,7 @@ See [`.env.example`](./.env.example). Step 1 only needs:
 - [x] **Step 4** — Vendor dashboard & product CRUD
 - [x] **Step 5** — Nearby nursery discovery (PostGIS + Leaflet)
 - [x] **Step 6** — Search (full-text + `pg_trgm`)
-- [ ] **Step 7** — Cart & multi-vendor checkout
+- [x] **Step 7** — Cart & multi-vendor checkout
 - [ ] **Step 8** — Order status & realtime tracking
 - [ ] **Step 9** — Payments (Razorpay)
 - [ ] **Step 10** — Reviews & ratings

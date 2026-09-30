@@ -36,6 +36,22 @@ export async function SiteHeader() {
                   Dashboard
                 </Link>
               )}
+              {user.role === 'CUSTOMER' && (
+                <>
+                  <Link
+                    href="/orders"
+                    className="text-zinc-600 hover:text-emerald-600 dark:text-zinc-300"
+                  >
+                    Orders
+                  </Link>
+                  <Link
+                    href="/cart"
+                    className="text-zinc-600 hover:text-emerald-600 dark:text-zinc-300"
+                  >
+                    🛒 Cart
+                  </Link>
+                </>
+              )}
               {user.role === 'ADMIN' && (
                 <Link
                   href="/admin"
