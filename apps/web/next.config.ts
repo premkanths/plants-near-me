@@ -1,15 +1,9 @@
 import type { NextConfig } from 'next';
 
-const apiBaseUrl = process.env.API_BASE_URL ?? 'http://localhost:3001';
-
 const nextConfig: NextConfig = {
-  // The browser must never talk to the API host directly (it may be private, and in
-  // sandboxes/previews "localhost" is not the user's machine). Everything goes through
-  // this same-origin proxy instead.
-  async rewrites() {
-    return [{ source: '/api/:path*', destination: `${apiBaseUrl}/api/:path*` }];
-  },
-  // Allow the hosted preview origins to load Next.js dev assets.
+  // Note: `/api/*` is handled by the route handlers in src/app/api (the BFF proxy
+  // in src/app/api/[...path]/route.ts), which inject the access token from the
+  // httpOnly cookie. The browser therefore only ever talks to this origin.
   allowedDevOrigins: ['*.e2b.app', '*.app.github.dev', '*.gitpod.io'],
 };
 

@@ -9,7 +9,7 @@ Find nurseries near you, shop across multiple vendors in one cart, and track eve
 | Database | PostgreSQL 16 + PostGIS 3.4 (+ `pg_trgm`, `pgvector` later) |
 | ORM      | Prisma 7 (driver adapter: `@prisma/adapter-pg`)             |
 | Maps     | Leaflet + OpenStreetMap _(Step 5)_                          |
-| Auth     | JWT + role guards (CUSTOMER / VENDOR / ADMIN) _(Step 3)_    |
+| Auth     | JWT (access+refresh) + role guards (CUSTOMER / VENDOR / ADMIN) |
 | Realtime | Socket.IO _(Step 8)_                                        |
 | Payments | Razorpay test mode _(Step 9)_                               |
 | Images   | Cloudinary _(Step 4)_                                       |
@@ -171,6 +171,48 @@ Indiranagar Urban Jungle   3.95 km
 Jayanagar Flower Bazaar    5.74 km
 ```
 
+## Auth (Step 3)
+
+| Endpoint                        | Auth       | Purpose                                     |
+| ------------------------------- | ---------- | ------------------------------------------- |
+| `POST /api/auth/register`        | public     | Customer sign-up (also creates their cart)  |
+| `POST /api/auth/register/vendor` | public     | Vendor sign-up → Vendor profile `approved=false` |
+| `POST /api/auth/login`           | public     | Returns access + refresh tokens             |
+| `POST /api/auth/refresh`         | public     | Rotates the token pair                      |
+| `POST /api/auth/logout`          | bearer     | Invalidates the stored refresh token        |
+| `GET  /api/auth/me`              | bearer     | Current profile                             |
+
+- **Access token** 15 min, **refresh token** 7 days, rotated on every use; only a
+  SHA-256 hash of the active refresh token is stored (`users.refresh_token_hash`),
+  and reuse of an old token wipes the session.
+- Passwords: **bcrypt, 12 rounds**. Login compares against a dummy hash for unknown
+  emails so response timing can't be used to enumerate accounts.
+- Guards are **global**: every route needs a valid token unless marked `@Public()`.
+  `@Roles('VENDOR')` adds authorisation on top.
+
+### Frontend session (BFF pattern)
+
+The browser never holds a JWT. `POST /api/session` (a Next.js route handler) logs in
+upstream and stores the tokens in **httpOnly cookies**; every other `/api/*` call goes
+through `src/app/api/[...path]/route.ts`, which injects the access token server-side
+and transparently refreshes it on a 401. `src/middleware.ts` redirects by role — purely
+for UX, since the API always re-verifies.
+
+Pages: `/login`, `/register` (customer ⇄ vendor toggle, with browser geolocation for the
+shop pin), `/account`, `/vendor`, `/admin`.
+
+### Verify Step 3
+
+```bash
+npm run test -w @eplant/api      # 14 unit tests (guards)
+npm run test:e2e -w @eplant/api  # 18 e2e tests (needs a running DB)
+
+curl -s -c c.txt -X POST localhost:3000/api/session -H 'Content-Type: application/json' \
+  -d '{"intent":"login","payload":{"email":"customer@eplant.test","password":"Password123!"}}'
+curl -s -b c.txt localhost:3000/api/auth/me           # works, no token in JS
+curl -s -b c.txt localhost:3000/api/auth/vendor-only  # 403 Requires role: VENDOR
+```
+
 ## Useful scripts
 
 | Command              | What it does                        |
@@ -205,7 +247,7 @@ See [`.env.example`](./.env.example). Step 1 only needs:
 
 - [x] **Step 1** — Monorepo, Docker/PostGIS, Prisma, health check, lint/format
 - [x] **Step 2** — Database schema, migrations, seed data, ER diagram
-- [ ] **Step 3** — Auth & role-based access
+- [x] **Step 3** — Auth & role-based access (JWT + guards + BFF cookies)
 - [ ] **Step 4** — Vendor dashboard & product CRUD
 - [ ] **Step 5** — Nearby nursery discovery (PostGIS + Leaflet)
 - [ ] **Step 6** — Search (full-text + `pg_trgm`)

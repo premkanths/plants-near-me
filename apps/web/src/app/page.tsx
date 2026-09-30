@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 const roadmap = [
   { step: 1, title: 'Monorepo, Docker, health check', done: true },
   { step: 2, title: 'Database schema + PostGIS + seed', done: true },
-  { step: 3, title: 'Auth & roles (JWT)', done: false },
+  { step: 3, title: 'Auth & roles (JWT)', done: true },
   { step: 4, title: 'Vendor dashboard', done: false },
   { step: 5, title: 'Nearby nursery discovery', done: false },
 ];
@@ -15,7 +15,7 @@ export default async function Home() {
   const health = await fetchHealth();
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col items-center gap-8 px-6 py-16">
+    <main className="mx-auto flex max-w-3xl flex-col items-center gap-8 px-6 py-16">
       <header className="text-center">
         <p className="mb-2 text-sm font-medium tracking-widest text-emerald-600 uppercase">
           🌱 E-PlantShopping 2.0
