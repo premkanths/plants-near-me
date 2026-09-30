@@ -7,6 +7,7 @@ import { HealthModule } from './health/health.module';
 import { PlantsModule } from './plants/plants.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ProductsModule } from './products/products.module';
+import { SearchModule } from './search/search.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { VendorsModule } from './vendors/vendors.module';
 
@@ -21,6 +22,7 @@ import { VendorsModule } from './vendors/vendors.module';
     AuthModule,
     HealthModule,
     DiscoveryModule,
+    SearchModule,
     VendorsModule,
     ProductsModule,
     PlantsModule,

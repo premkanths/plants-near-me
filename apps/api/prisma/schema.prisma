@@ -203,6 +203,10 @@ model Plant {
   careNotes      String? @map("care_notes")
   imageUrl       String? @map("image_url")
 
+  /// Weighted tsvector maintained by PostgreSQL (GENERATED ALWAYS ... STORED).
+  /// Never written by the app; queried through $queryRaw in SearchService.
+  searchVector Unsupported("tsvector")? @map("search_vector")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -238,6 +242,9 @@ model Product {
   potSize     String?  @map("pot_size")
   images      String[] @default([])
   active      Boolean  @default(true)
+
+  /// See Plant.searchVector — generated column, read-only for Prisma.
+  searchVector Unsupported("tsvector")? @map("search_vector")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

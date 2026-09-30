@@ -9,6 +9,7 @@ const roadmap = [
   { step: 3, title: 'Auth & roles (JWT)', done: true },
   { step: 4, title: 'Vendor dashboard', done: true },
   { step: 5, title: 'Nearby nursery discovery', done: true },
+  { step: 6, title: 'Search & filters (FTS + trigram)', done: true },
 ];
 
 export default async function Home() {
@@ -26,12 +27,20 @@ export default async function Home() {
         </p>
       </header>
 
-      <a
-        href="/nearby"
-        className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-medium text-white transition hover:bg-emerald-700"
-      >
-        📍 Find nurseries near me
-      </a>
+      <div className="flex flex-wrap justify-center gap-3">
+        <a
+          href="/search"
+          className="rounded-xl border border-emerald-600 px-5 py-3 text-sm font-medium text-emerald-700 transition hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950"
+        >
+          🔍 Search plants
+        </a>
+        <a
+          href="/nearby"
+          className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-medium text-white transition hover:bg-emerald-700"
+        >
+          📍 Find nurseries near me
+        </a>
+      </div>
 
       <HealthCard initial={health} />
 

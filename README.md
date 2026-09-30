@@ -284,6 +284,49 @@ npm run test -w @eplant/api      # 40 unit tests (16 for discovery)
 npm run test:e2e -w @eplant/api  # 66 e2e tests (28 for discovery)
 ```
 
+## Search (Step 6)
+
+| Endpoint                  | Purpose                                     |
+| ------------------------- | ------------------------------------------- |
+| `GET /api/search`         | Full-text + fuzzy search with facets        |
+| `GET /api/search/suggest` | Trigram autocomplete for plants and shops   |
+
+```bash
+curl "http://localhost:3001/api/search?q=mony+plnt"   # -> strategy "fuzzy", didYouMean "Money Plant"
+```
+
+**Two tiers.** `plants.search_vector` and `products.search_vector` are
+`GENERATED ALWAYS ... STORED` tsvectors with weights (A = name, B = scientific
+name, C = description, D = care notes), each behind a GIN index. A query runs
+`websearch_to_tsquery` first — so `"quoted phrases"` and `-negation` work, and
+English stemming means `grow` and `growing` return the same set. Only if that
+finds nothing does `pg_trgm` similarity take over, which is what turns
+`mony plnt` into Money Plant, plus a `didYouMean` suggestion.
+
+Generated columns rather than triggers: PostgreSQL recomputes the vector inside
+the same statement that changes the row, so a listing can never drift out of
+sync with its index.
+
+**Relevance** is a sum of named components (`ts_rank_cd` on the title ×1.0, on
+the species ×0.6, a capped rating nudge, and a proximity term when coordinates
+are supplied) rather than one opaque expression — each can be tuned, explained,
+or joined by a semantic score later.
+
+**pgvector readiness.** Semantic search is intentionally *not* switched on: it
+needs the extension plus an embedding pipeline (Step 12). The exact migration
+and the ranking term it plugs into are written out at the bottom of
+`apps/api/prisma/migrations/20260930090000_search/migration.sql`.
+
+Page: `/search` — autocomplete, facet chips whose counts match the filtered
+result set, price slider, "only shops near me", and typo recovery.
+
+### Verify Step 6
+
+```bash
+npm run test -w @eplant/api      # 57 unit tests (17 for search)
+npm run test:e2e -w @eplant/api  # 92 e2e tests (26 for search)
+```
+
 ## Useful scripts
 
 | Command              | What it does                        |
@@ -321,7 +364,7 @@ See [`.env.example`](./.env.example). Step 1 only needs:
 - [x] **Step 3** — Auth & role-based access (JWT + guards + BFF cookies)
 - [x] **Step 4** — Vendor dashboard & product CRUD
 - [x] **Step 5** — Nearby nursery discovery (PostGIS + Leaflet)
-- [ ] **Step 6** — Search (full-text + `pg_trgm`)
+- [x] **Step 6** — Search (full-text + `pg_trgm`)
 - [ ] **Step 7** — Cart & multi-vendor checkout
 - [ ] **Step 8** — Order status & realtime tracking
 - [ ] **Step 9** — Payments (Razorpay)
