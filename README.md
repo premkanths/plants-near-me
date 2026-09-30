@@ -213,6 +213,37 @@ curl -s -b c.txt localhost:3000/api/auth/me           # works, no token in JS
 curl -s -b c.txt localhost:3000/api/auth/vendor-only  # 403 Requires role: VENDOR
 ```
 
+## Vendor features (Step 4)
+
+| Endpoint                                | Role   | Purpose                             |
+| --------------------------------------- | ------ | ----------------------------------- |
+| `GET    /api/vendor/products`            | VENDOR | Own products (search, paging)       |
+| `GET    /api/vendor/products/stats`      | VENDOR | Counts + inventory value            |
+| `POST   /api/vendor/products`            | VENDOR | Create listing                      |
+| `GET/PATCH/DELETE /api/vendor/products/:id` | VENDOR | Read / edit / remove own listing |
+| `PATCH  /api/vendor/products/:id/stock`  | VENDOR | Quick restock                       |
+| `GET/PATCH /api/vendor/profile`          | VENDOR | Shop details, delivery radius & fee |
+| `POST   /api/uploads/product-image`      | VENDOR | Image upload (≤5 MB, image types)   |
+| `GET    /api/plants`                     | public | Species catalogue for the form      |
+
+Pages: `/vendor` (stats + inventory table with inline stock editing), `/vendor/products/new`,
+`/vendor/products/[id]`, `/vendor/settings` (radius slider, geolocation pin).
+
+**Ownership is enforced in the WHERE clause**, e.g. `updateMany({ where: { id, vendorId } })` —
+the vendor id always comes from the JWT and is never read from the request body. A vendor
+touching another vendor's product gets `403`; the edit page renders `404`.
+
+**Images**: uploaded through the backend so the Cloudinary secret never reaches the browser.
+With `CLOUDINARY_URL` unset, files are written to `uploads/` and served by the API — the
+project runs end-to-end with no third-party account.
+
+### Verify Step 4
+
+```bash
+npm run test -w @eplant/api      # 24 unit tests (10 ownership-focused)
+npm run test:e2e -w @eplant/api  # 38 e2e tests
+```
+
 ## Useful scripts
 
 | Command              | What it does                        |
@@ -248,7 +279,7 @@ See [`.env.example`](./.env.example). Step 1 only needs:
 - [x] **Step 1** — Monorepo, Docker/PostGIS, Prisma, health check, lint/format
 - [x] **Step 2** — Database schema, migrations, seed data, ER diagram
 - [x] **Step 3** — Auth & role-based access (JWT + guards + BFF cookies)
-- [ ] **Step 4** — Vendor dashboard & product CRUD
+- [x] **Step 4** — Vendor dashboard & product CRUD
 - [ ] **Step 5** — Nearby nursery discovery (PostGIS + Leaflet)
 - [ ] **Step 6** — Search (full-text + `pg_trgm`)
 - [ ] **Step 7** — Cart & multi-vendor checkout

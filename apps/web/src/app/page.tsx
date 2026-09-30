@@ -7,7 +7,7 @@ const roadmap = [
   { step: 1, title: 'Monorepo, Docker, health check', done: true },
   { step: 2, title: 'Database schema + PostGIS + seed', done: true },
   { step: 3, title: 'Auth & roles (JWT)', done: true },
-  { step: 4, title: 'Vendor dashboard', done: false },
+  { step: 4, title: 'Vendor dashboard', done: true },
   { step: 5, title: 'Nearby nursery discovery', done: false },
 ];
 

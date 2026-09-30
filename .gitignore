@@ -39,3 +39,6 @@ apps/api/src/generated/
 
 # local PGlite database (no-docker fallback)
 .pglite/
+
+# local image uploads (Cloudinary fallback)
+apps/api/uploads/
