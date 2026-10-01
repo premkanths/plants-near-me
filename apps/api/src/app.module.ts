@@ -11,6 +11,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { ProductsModule } from './products/products.module';
 import { PaymentsModule } from './payments/payments.module';
 import { RealtimeModule } from './realtime/realtime.module';
+import { ReviewsModule } from './reviews/reviews.module';
 import { SearchModule } from './search/search.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { VendorsModule } from './vendors/vendors.module';
@@ -31,6 +32,7 @@ import { VendorsModule } from './vendors/vendors.module';
     PaymentsModule,
     CartModule,
     OrdersModule,
+    ReviewsModule,
     VendorsModule,
     ProductsModule,
     PlantsModule,

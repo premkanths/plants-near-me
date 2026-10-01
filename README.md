@@ -2,19 +2,19 @@
 
 Find nurseries near you, shop across multiple vendors in one cart, and track every order live.
 
-| Layer    | Tech                                                        |
-| -------- | ----------------------------------------------------------- |
-| Frontend | Next.js 16 (TypeScript, App Router) + Tailwind CSS 4        |
-| Backend  | NestJS 11 (TypeScript)                                      |
-| Database | PostgreSQL 16 + PostGIS 3.4 (+ `pg_trgm`, `pgvector` later) |
-| ORM      | Prisma 7 (driver adapter: `@prisma/adapter-pg`)             |
-| Maps     | Leaflet + OpenStreetMap _(Step 5)_                          |
+| Layer    | Tech                                                           |
+| -------- | -------------------------------------------------------------- |
+| Frontend | Next.js 16 (TypeScript, App Router) + Tailwind CSS 4           |
+| Backend  | NestJS 11 (TypeScript)                                         |
+| Database | PostgreSQL 16 + PostGIS 3.4 (+ `pg_trgm`, `pgvector` later)    |
+| ORM      | Prisma 7 (driver adapter: `@prisma/adapter-pg`)                |
+| Maps     | Leaflet + OpenStreetMap _(Step 5)_                             |
 | Auth     | JWT (access+refresh) + role guards (CUSTOMER / VENDOR / ADMIN) |
-| Realtime | Socket.IO                                                   |
-| Payments | Razorpay test mode _(Step 9)_                               |
-| Images   | Cloudinary _(Step 4)_                                       |
-| AI       | Plant.id / PlantNet + LLM API _(Steps 12–13)_               |
-| Dev/CI   | Docker Compose, GitHub Actions _(Step 14)_                  |
+| Realtime | Socket.IO                                                      |
+| Payments | Razorpay test mode _(Step 9)_                                  |
+| Images   | Cloudinary _(Step 4)_                                          |
+| AI       | Plant.id / PlantNet + LLM API _(Steps 12–13)_                  |
+| Dev/CI   | Docker Compose, GitHub Actions _(Step 14)_                     |
 
 ## Repository layout
 
@@ -173,14 +173,14 @@ Jayanagar Flower Bazaar    5.74 km
 
 ## Auth (Step 3)
 
-| Endpoint                        | Auth       | Purpose                                     |
-| ------------------------------- | ---------- | ------------------------------------------- |
-| `POST /api/auth/register`        | public     | Customer sign-up (also creates their cart)  |
-| `POST /api/auth/register/vendor` | public     | Vendor sign-up → Vendor profile `approved=false` |
-| `POST /api/auth/login`           | public     | Returns access + refresh tokens             |
-| `POST /api/auth/refresh`         | public     | Rotates the token pair                      |
-| `POST /api/auth/logout`          | bearer     | Invalidates the stored refresh token        |
-| `GET  /api/auth/me`              | bearer     | Current profile                             |
+| Endpoint                         | Auth   | Purpose                                          |
+| -------------------------------- | ------ | ------------------------------------------------ |
+| `POST /api/auth/register`        | public | Customer sign-up (also creates their cart)       |
+| `POST /api/auth/register/vendor` | public | Vendor sign-up → Vendor profile `approved=false` |
+| `POST /api/auth/login`           | public | Returns access + refresh tokens                  |
+| `POST /api/auth/refresh`         | public | Rotates the token pair                           |
+| `POST /api/auth/logout`          | bearer | Invalidates the stored refresh token             |
+| `GET  /api/auth/me`              | bearer | Current profile                                  |
 
 - **Access token** 15 min, **refresh token** 7 days, rotated on every use; only a
   SHA-256 hash of the active refresh token is stored (`users.refresh_token_hash`),
@@ -215,16 +215,16 @@ curl -s -b c.txt localhost:3000/api/auth/vendor-only  # 403 Requires role: VENDO
 
 ## Vendor features (Step 4)
 
-| Endpoint                                | Role   | Purpose                             |
-| --------------------------------------- | ------ | ----------------------------------- |
-| `GET    /api/vendor/products`            | VENDOR | Own products (search, paging)       |
-| `GET    /api/vendor/products/stats`      | VENDOR | Counts + inventory value            |
-| `POST   /api/vendor/products`            | VENDOR | Create listing                      |
-| `GET/PATCH/DELETE /api/vendor/products/:id` | VENDOR | Read / edit / remove own listing |
-| `PATCH  /api/vendor/products/:id/stock`  | VENDOR | Quick restock                       |
-| `GET/PATCH /api/vendor/profile`          | VENDOR | Shop details, delivery radius & fee |
-| `POST   /api/uploads/product-image`      | VENDOR | Image upload (≤5 MB, image types)   |
-| `GET    /api/plants`                     | public | Species catalogue for the form      |
+| Endpoint                                    | Role   | Purpose                             |
+| ------------------------------------------- | ------ | ----------------------------------- |
+| `GET    /api/vendor/products`               | VENDOR | Own products (search, paging)       |
+| `GET    /api/vendor/products/stats`         | VENDOR | Counts + inventory value            |
+| `POST   /api/vendor/products`               | VENDOR | Create listing                      |
+| `GET/PATCH/DELETE /api/vendor/products/:id` | VENDOR | Read / edit / remove own listing    |
+| `PATCH  /api/vendor/products/:id/stock`     | VENDOR | Quick restock                       |
+| `GET/PATCH /api/vendor/profile`             | VENDOR | Shop details, delivery radius & fee |
+| `POST   /api/uploads/product-image`         | VENDOR | Image upload (≤5 MB, image types)   |
+| `GET    /api/plants`                        | public | Species catalogue for the form      |
 
 Pages: `/vendor` (stats + inventory table with inline stock editing), `/vendor/products/new`,
 `/vendor/products/[id]`, `/vendor/settings` (radius slider, geolocation pin).
@@ -246,8 +246,8 @@ npm run test:e2e -w @eplant/api  # 38 e2e tests
 
 ## Nearby discovery (Step 5)
 
-| Endpoint                 | Purpose                                                   |
-| ------------------------ | --------------------------------------------------------- |
+| Endpoint                   | Purpose                                                   |
+| -------------------------- | --------------------------------------------------------- |
 | `GET /api/nearby/vendors`  | Shops inside a radius, nearest first                      |
 | `GET /api/nearby/products` | In-stock listings from nearby shops                       |
 | `GET /api/shops/:slug`     | Public shop page (distance included when lat/lng is sent) |
@@ -270,7 +270,7 @@ Index Scan using vendors_location_gist_idx on vendors v
 `ST_Distance` then runs only on the surviving rows, for display and ordering.
 Writing `ST_Distance(...) <= 5000` in the `WHERE` clause instead would return the
 same rows but force a sequential scan, so the two are not interchangeable.
-`deliversToYou` is a second `ST_DWithin` against each vendor's *own*
+`deliversToYou` is a second `ST_DWithin` against each vendor's _own_
 `delivery_radius_km`, which is why a 6 km-away shop can still deliver while a
 4 km-away one cannot.
 
@@ -286,10 +286,10 @@ npm run test:e2e -w @eplant/api  # 66 e2e tests (28 for discovery)
 
 ## Search (Step 6)
 
-| Endpoint                  | Purpose                                     |
-| ------------------------- | ------------------------------------------- |
-| `GET /api/search`         | Full-text + fuzzy search with facets        |
-| `GET /api/search/suggest` | Trigram autocomplete for plants and shops   |
+| Endpoint                  | Purpose                                   |
+| ------------------------- | ----------------------------------------- |
+| `GET /api/search`         | Full-text + fuzzy search with facets      |
+| `GET /api/search/suggest` | Trigram autocomplete for plants and shops |
 
 ```bash
 curl "http://localhost:3001/api/search?q=mony+plnt"   # -> strategy "fuzzy", didYouMean "Money Plant"
@@ -312,7 +312,7 @@ the species ×0.6, a capped rating nudge, and a proximity term when coordinates
 are supplied) rather than one opaque expression — each can be tuned, explained,
 or joined by a semantic score later.
 
-**pgvector readiness.** Semantic search is intentionally *not* switched on: it
+**pgvector readiness.** Semantic search is intentionally _not_ switched on: it
 needs the extension plus an embedding pipeline (Step 12). The exact migration
 and the ranking term it plugs into are written out at the bottom of
 `apps/api/prisma/migrations/20260930090000_search/migration.sql`.
@@ -329,16 +329,16 @@ npm run test:e2e -w @eplant/api  # 92 e2e tests (26 for search)
 
 ## Cart & multi-vendor checkout (Step 7)
 
-| Endpoint                        | Role     | Purpose                            |
-| ------------------------------- | -------- | ---------------------------------- |
-| `GET    /api/cart`              | CUSTOMER | Cart grouped by vendor, with issues |
-| `POST   /api/cart/items`        | CUSTOMER | Add (tops up an existing line)      |
-| `PATCH  /api/cart/items/:id`    | CUSTOMER | Change quantity                     |
-| `DELETE /api/cart/items/:id`    | CUSTOMER | Remove a line                       |
-| `DELETE /api/cart`              | CUSTOMER | Empty the cart                      |
-| `POST   /api/orders/checkout`   | CUSTOMER | Place the order (COD for now)       |
-| `GET    /api/orders`            | CUSTOMER | Own order history                   |
-| `GET    /api/orders/:id`        | CUSTOMER | Own order detail                    |
+| Endpoint                      | Role     | Purpose                             |
+| ----------------------------- | -------- | ----------------------------------- |
+| `GET    /api/cart`            | CUSTOMER | Cart grouped by vendor, with issues |
+| `POST   /api/cart/items`      | CUSTOMER | Add (tops up an existing line)      |
+| `PATCH  /api/cart/items/:id`  | CUSTOMER | Change quantity                     |
+| `DELETE /api/cart/items/:id`  | CUSTOMER | Remove a line                       |
+| `DELETE /api/cart`            | CUSTOMER | Empty the cart                      |
+| `POST   /api/orders/checkout` | CUSTOMER | Place the order (COD for now)       |
+| `GET    /api/orders`          | CUSTOMER | Own order history                   |
+| `GET    /api/orders/:id`      | CUSTOMER | Own order detail                    |
 
 One cart becomes **one `MasterOrder` + one `VendorOrder` per shop**, each with
 its own number (`EP-260930-4F2A9C`, `…-V1`, `…-V2`), its own delivery fee and
@@ -356,7 +356,7 @@ order.
 5. the cart is emptied.
 
 Any failure throws, and Postgres rolls back all of it — no half-placed order,
-no leaked stock, cart untouched. Conflicts come back as **409** listing *every*
+no leaked stock, cart untouched. Conflicts come back as **409** listing _every_
 problem at once, not one per retry.
 
 Isolation is Read Committed plus explicit row locks rather than Serializable:
@@ -397,12 +397,12 @@ so the UI can never offer a move the server would reject with a 400.
 every time one of them moves, so a partly rejected order cannot drift out of
 sync:
 
-| Vendor slices                 | Master order        |
-| ----------------------------- | ------------------- |
-| all still working             | `PLACED`            |
-| all delivered                 | `COMPLETED`         |
-| all rejected                  | `CANCELLED`         |
-| mixed, or one finished early  | `PARTIALLY_FULFILLED` |
+| Vendor slices                | Master order          |
+| ---------------------------- | --------------------- |
+| all still working            | `PLACED`              |
+| all delivered                | `COMPLETED`           |
+| all rejected                 | `CANCELLED`           |
+| mixed, or one finished early | `PARTIALLY_FULFILLED` |
 
 Rejecting a slice **returns its stock to the shelf** inside the same
 transaction that writes the status — otherwise units reserved at checkout would
@@ -410,13 +410,13 @@ be lost forever.
 
 ### Endpoints
 
-| Method | Path                             | Role     | Purpose                              |
-| ------ | -------------------------------- | -------- | ------------------------------------ |
-| GET    | `/api/vendor/orders?status=`     | VENDOR   | The shop's queue (own slices only)   |
-| GET    | `/api/vendor/orders/stats`       | VENDOR   | Counts + delivered revenue           |
-| GET    | `/api/vendor/orders/:id`         | VENDOR   | One slice, with the delivery address |
-| PATCH  | `/api/vendor/orders/:id/status`  | VENDOR   | Advance it; `reason` required to reject |
-| POST   | `/api/realtime/ticket`           | any user | Mint a socket handshake ticket       |
+| Method | Path                            | Role     | Purpose                                 |
+| ------ | ------------------------------- | -------- | --------------------------------------- |
+| GET    | `/api/vendor/orders?status=`    | VENDOR   | The shop's queue (own slices only)      |
+| GET    | `/api/vendor/orders/stats`      | VENDOR   | Counts + delivered revenue              |
+| GET    | `/api/vendor/orders/:id`        | VENDOR   | One slice, with the delivery address    |
+| PATCH  | `/api/vendor/orders/:id/status` | VENDOR   | Advance it; `reason` required to reject |
+| POST   | `/api/realtime/ticket`          | any user | Mint a socket handshake ticket          |
 
 ### Websocket authentication
 
@@ -474,10 +474,10 @@ ticket is rejected.
 
 Two ways to pay, one order pipeline.
 
-| Method | What happens at checkout | When it becomes the shop's problem |
-| ------ | ------------------------ | ---------------------------------- |
-| **COD** | Order is `PLACED` immediately, payment row `COD`/`PENDING` | Straight away |
-| **ONLINE** | Stock is reserved, order waits in `PENDING_PAYMENT` | Only once a signed payment verifies |
+| Method     | What happens at checkout                                   | When it becomes the shop's problem  |
+| ---------- | ---------------------------------------------------------- | ----------------------------------- |
+| **COD**    | Order is `PLACED` immediately, payment row `COD`/`PENDING` | Straight away                       |
+| **ONLINE** | Stock is reserved, order waits in `PENDING_PAYMENT`        | Only once a signed payment verifies |
 
 An unpaid online order is **invisible to the vendor** — it is absent from the
 queue, 404s on direct access, and cannot be advanced. That is the point of
@@ -487,13 +487,13 @@ marks its slice delivered.
 
 ### Endpoints
 
-| Method | Path                               | Role     | Purpose                             |
-| ------ | ---------------------------------- | -------- | ----------------------------------- |
-| GET    | `/api/payments/config`             | public   | Public key id for the browser widget |
-| POST   | `/api/orders/:id/payment/confirm`  | CUSTOMER | Verify what the widget returned     |
+| Method | Path                               | Role     | Purpose                               |
+| ------ | ---------------------------------- | -------- | ------------------------------------- |
+| GET    | `/api/payments/config`             | public   | Public key id for the browser widget  |
+| POST   | `/api/orders/:id/payment/confirm`  | CUSTOMER | Verify what the widget returned       |
 | POST   | `/api/orders/:id/payment/failed`   | CUSTOMER | Abandoned/declined → cancel + restock |
-| POST   | `/api/orders/:id/payment/simulate` | CUSTOMER | Demo-only; 400 once real keys exist |
-| POST   | `/api/payments/webhook`            | public   | Razorpay's server-to-server signal  |
+| POST   | `/api/orders/:id/payment/simulate` | CUSTOMER | Demo-only; 400 once real keys exist   |
+| POST   | `/api/payments/webhook`            | public   | Razorpay's server-to-server signal    |
 
 ### What makes it trustworthy
 
@@ -517,7 +517,7 @@ the order and notifies the shops; the loser is a no-op. The same guard makes
 
 - **live** — `RAZORPAY_KEY_ID` + `RAZORPAY_KEY_SECRET` are set; talks to the
   real test-mode API and opens the hosted checkout widget.
-- **stub** — no keys; mints realistic `order_…` ids and signs with the *same*
+- **stub** — no keys; mints realistic `order_…` ids and signs with the _same_
   HMAC. Every signature check, webhook and race test still runs for real — only
   the HTTP call to Razorpay is faked.
 
@@ -546,6 +546,70 @@ returns every reserved unit, and a browser/webhook race notifies the shops once.
 > customer who abandons payment gets a cancelled order rather than their cart
 > back. Restoring the cart on failure would be the kinder behaviour; it is not
 > built yet.
+
+## Reviews & ratings (Step 10)
+
+Only a customer who actually received the goods can rate a shop. The right to
+review is derived from a `VendorOrder`, not granted by a flag:
+
+- the order must belong to the caller — someone else's order answers **404**,
+  never 403, so the API does not confirm that an order id exists;
+- the order must be `DELIVERED` — anything earlier answers **400**;
+- an optional `productId` must appear in that order's own lines, otherwise
+  **400**. The web form builds its dropdown from the order, so it cannot ask
+  for something the API would refuse.
+
+Each delivered order therefore earns one shop-level review plus at most one
+review per plant in it.
+
+| Method | Path                      | Who         | Does                                                          |
+| ------ | ------------------------- | ----------- | ------------------------------------------------------------- |
+| GET    | `/api/reviews/shop/:slug` | public      | Paged reviews + average and a 5→1 star breakdown              |
+| GET    | `/api/reviews/mine`       | customer    | `{ written, awaiting }` — delivered orders you can still rate |
+| POST   | `/api/reviews`            | customer    | `{ vendorOrderId, productId?, rating 1-5, comment? }`         |
+| PATCH  | `/api/reviews/:id`        | author only | Edit rating/comment                                           |
+| DELETE | `/api/reviews/:id`        | author only | Remove it                                                     |
+
+### Keeping the averages honest
+
+`Vendor.ratingAvg/ratingCount` and `Product.ratingAvg/ratingCount` are
+denormalised so listings can sort and filter without joining every review. Every
+write **recomputes** them with an `aggregate` inside the same transaction rather
+than nudging a running total — an edit from 5★ to 1★ or a deleted last review
+would quietly corrupt an incremental counter, and a crash between the two
+statements would leave the cached number lying forever. Deleting the last review
+resets both fields to 0.
+
+### Why a partial unique index
+
+`@@unique([authorId, vendorOrderId, productId])` does not stop a customer
+spamming shop-level reviews: `product_id` is `NULL` there, and Postgres treats
+two NULLs as distinct, so the constraint never fires. An e2e test caught it.
+Migration `20261001130000_one_shop_review_per_order` adds
+
+```sql
+CREATE UNIQUE INDEX "reviews_author_order_shop_level_key"
+  ON "reviews"("author_id", "vendor_order_id")
+  WHERE "product_id" IS NULL;
+```
+
+Both indexes surface as Prisma `P2002`, which the service maps to **409**.
+
+### Verify Step 10
+
+```bash
+# log in, then drive an order to DELIVERED as the vendor, then:
+curl -b c.txt localhost:3000/api/reviews/mine                      # awaiting[]
+curl -b c.txt -X POST localhost:3000/api/reviews \
+  -H 'content-type: application/json' \
+  -d '{"vendorOrderId":"<id>","rating":5,"comment":"Healthy aloe"}'
+curl -b c.txt -X POST localhost:3000/api/reviews \
+  -H 'content-type: application/json' -d '{"vendorOrderId":"<id>","rating":1}'  # 409
+curl localhost:3000/api/reviews/shop/lalbagh-green-nursery         # avg + breakdown
+```
+
+In the browser: **Reviews** in the header lists orders waiting to be rated, and
+`/shops/<slug>` shows the shop's average, the star breakdown and per-plant stars.
 
 ## Useful scripts
 
@@ -588,7 +652,7 @@ See [`.env.example`](./.env.example). Step 1 only needs:
 - [x] **Step 7** — Cart & multi-vendor checkout
 - [x] **Step 8** — Order status & realtime tracking
 - [x] **Step 9** — Payments (Razorpay test mode + COD)
-- [ ] **Step 10** — Reviews & ratings
+- [x] **Step 10** — Reviews & ratings
 - [ ] **Step 11** — Admin panel & analytics
 - [ ] **Step 12** — Plant recommendation (rules → LLM)
 - [ ] **Step 13** — Plant identification from a photo

@@ -16,6 +16,7 @@ const PROTECTED: { prefix: string; roles: Role[] }[] = [
   { prefix: '/cart', roles: ['CUSTOMER'] },
   { prefix: '/checkout', roles: ['CUSTOMER'] },
   { prefix: '/orders', roles: ['CUSTOMER'] },
+  { prefix: '/reviews', roles: ['CUSTOMER'] },
 ];
 
 const GUEST_ONLY = ['/login', '/register'];
@@ -64,6 +65,7 @@ export const config = {
     '/cart/:path*',
     '/checkout/:path*',
     '/orders/:path*',
+    '/reviews/:path*',
     '/login',
     '/register',
   ],

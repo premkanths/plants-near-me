@@ -243,6 +243,10 @@ model Product {
   images      String[] @default([])
   active      Boolean  @default(true)
 
+  /// Rolling aggregate of this listing's reviews (Step 10), recomputed on write.
+  ratingAvg   Float @default(0) @map("rating_avg")
+  ratingCount Int   @default(0) @map("rating_count")
+
   /// See Plant.searchVector — generated column, read-only for Prisma.
   searchVector Unsupported("tsvector")? @map("search_vector")
 
@@ -259,6 +263,7 @@ model Product {
   @@index([vendorId, active])
   @@index([plantId])
   @@index([price])
+  @@index([ratingAvg])
   @@map("products")
 }
 
@@ -422,6 +427,9 @@ model Review {
   product     Product?    @relation(fields: [productId], references: [id], onDelete: Cascade)
   vendorOrder VendorOrder @relation(fields: [vendorOrderId], references: [id], onDelete: Cascade)
 
+  /// Covers per-plant reviews. Shop-level reviews (product_id IS NULL) are not
+  /// caught by this, because Postgres treats NULLs as distinct — a partial
+  /// unique index in migration 20261001130000 enforces one of those per order.
   @@unique([authorId, vendorOrderId, productId])
   @@index([vendorId, createdAt])
   @@index([productId])

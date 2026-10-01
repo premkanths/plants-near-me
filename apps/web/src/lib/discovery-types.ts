@@ -83,6 +83,8 @@ export interface ShopDetail {
     stock: number;
     potSize: string | null;
     images: string[];
+    ratingAvg: number;
+    ratingCount: number;
     plant: { id: string; commonName: string; scientificName: string; slug: string };
   }[];
 }

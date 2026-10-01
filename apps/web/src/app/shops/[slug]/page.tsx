@@ -1,6 +1,9 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { distanceLabel, type ShopDetail } from '@/lib/discovery-types';
+import { ReviewList } from '@/components/reviews/ReviewList';
+import { Stars } from '@/components/reviews/Stars';
+import type { ShopReviews } from '@/lib/review-types';
 import { serverApiSafe } from '@/lib/server-api';
 import { rupees } from '@/lib/vendor-types';
 import { AddToCartButton } from '@/components/cart/AddToCartButton';
@@ -20,6 +23,10 @@ export default async function ShopPage({
   const point = lat && lng ? `?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}` : '';
   const shop = await serverApiSafe<ShopDetail>(`/shops/${encodeURIComponent(slug)}${point}`);
   if (!shop) notFound();
+
+  const reviews = await serverApiSafe<ShopReviews>(
+    `/reviews/shop/${encodeURIComponent(slug)}?pageSize=10`,
+  );
 
   const inStock = shop.products.filter((product) => product.stock > 0);
 
@@ -97,6 +104,12 @@ export default async function ShopPage({
           >
             <h3 className="font-medium">{product.title}</h3>
             <p className="text-xs text-zinc-500 italic">{product.plant.scientificName}</p>
+            {product.ratingCount > 0 && (
+              <p className="mt-1 flex items-center gap-1 text-xs text-zinc-500">
+                <Stars value={product.ratingAvg} />
+                {product.ratingAvg.toFixed(1)} ({product.ratingCount})
+              </p>
+            )}
             <div className="mt-3 flex items-center justify-between">
               <span className="text-lg font-semibold">{rupees(product.price)}</span>
               <span className="text-xs text-zinc-500">
@@ -109,6 +122,15 @@ export default async function ShopPage({
           </li>
         ))}
       </ul>
+
+      <h2 className="mt-10 mb-3 text-sm font-semibold tracking-wider text-zinc-400 uppercase">
+        What buyers say
+      </h2>
+      {reviews ? (
+        <ReviewList data={reviews} />
+      ) : (
+        <p className="text-sm text-zinc-500">Reviews are unavailable right now.</p>
+      )}
     </main>
   );
 }

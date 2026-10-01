@@ -45,6 +45,12 @@ export async function SiteHeader() {
                     Orders
                   </Link>
                   <Link
+                    href="/reviews"
+                    className="text-zinc-600 hover:text-emerald-600 dark:text-zinc-300"
+                  >
+                    Reviews
+                  </Link>
+                  <Link
                     href="/cart"
                     className="text-zinc-600 hover:text-emerald-600 dark:text-zinc-300"
                   >

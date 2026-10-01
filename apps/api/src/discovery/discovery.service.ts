@@ -262,6 +262,8 @@ export class DiscoveryService {
             stock: true,
             potSize: true,
             images: true,
+            ratingAvg: true,
+            ratingCount: true,
             plant: { select: { id: true, commonName: true, scientificName: true, slug: true } },
           },
         },
