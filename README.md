@@ -662,6 +662,68 @@ curl -b admin.txt -D - -o orders.csv localhost:3000/api/admin/export/orders
 curl -b customer.txt localhost:3000/api/admin/overview      # 403
 ```
 
+## Recommendations (Step 12)
+
+Rule-based first, LLM strictly on top. Everything that decides _what_ to
+recommend lives in `apps/api/src/recommendations/recommendation-rules.ts` as
+pure functions — no Prisma, no Nest, no network — so the interesting logic is
+covered by fast unit tests and can be read without tracing through a service.
+
+| Method | Path                                         | Who    | Does                                          |
+| ------ | -------------------------------------------- | ------ | --------------------------------------------- |
+| GET    | `/api/recommendations?lat&lng&limit&explain` | anyone | Personalised when signed in, popular when not |
+| GET    | `/api/recommendations/similar/:productId`    | anyone | Content-based "more like this"                |
+
+One URL serves both audiences. `@Public()` routes now decode a bearer token
+when one happens to be present (and ignore a bad one), so the home page can
+call a single endpoint and get picks shaped by history for signed-in shoppers.
+
+### How a pick is scored
+
+A transparent weighted sum, every term of which produces a human-readable
+reason that the card actually shows:
+
+- **Taste match** — placement, light, water and care level, scored as the share
+  of the customer's past purchases with that attribute; plus shared categories,
+  pet-safe/air-purifying affinity, and a bonus for shops they rated 4★+.
+- **Price fit** — distance in log-space from their _median_ spend (median, so
+  one expensive palm does not drag the profile upmarket).
+- **Quality** — a Bayesian average shrunk toward a 3.5 prior with the weight of
+  five reviews, so a single 5★ listing cannot outrank a 4.6★ with forty.
+- **Popularity** — `log1p(unitsSold)`, diminishing returns.
+- **Proximity** — 1 at the doorstep, 0 beyond 15 km; candidates are dropped
+  entirely if the shop does not deliver to the given point.
+- **Low stock penalty** — a recommendation that 404s on the next click is worse
+  than none.
+
+Then three hard rules: never a plant they already own, never anything out of
+stock, and never more than one listing per species or two per shop. Ten
+monsteras from ten shops is not a recommendations page.
+
+Cold start (no history) falls back to easy-care, well-rated and nearby.
+
+### The LLM layer
+
+`?explain=true` asks an LLM to rewrite the rule-based facts into one friendly
+line. It never chooses or reorders the products: a hallucinated sentence is
+cosmetic, a hallucinated ranking would surface out-of-stock or irrelevant
+plants. With no `OPENAI_API_KEY` the module logs once at boot, binds a
+`NullLlmGateway` and the endpoint simply returns the rule-based reasons — same
+as payments, the project runs fully offline. The call has a 6 s abort, a
+tolerant JSON parser, and any failure silently falls back.
+
+### Verify Step 12
+
+```bash
+curl 'localhost:3000/api/recommendations?limit=3'                  # strategy: popular
+curl -b customer.txt 'localhost:3000/api/recommendations?lat=12.9716&lng=77.5946'
+curl 'localhost:3000/api/recommendations/similar/<productId>?limit=4'
+```
+
+In the browser: the home page shows "Popular right now" logged out and "Picked
+for you" once you have bought something, and the cart suggests plants that go
+with what is already in it.
+
 ## Useful scripts
 
 | Command              | What it does                        |
@@ -705,7 +767,7 @@ See [`.env.example`](./.env.example). Step 1 only needs:
 - [x] **Step 9** — Payments (Razorpay test mode + COD)
 - [x] **Step 10** — Reviews & ratings
 - [x] **Step 11** — Admin panel & analytics
-- [ ] **Step 12** — Plant recommendation (rules → LLM)
+- [x] **Step 12** — Plant recommendation (rules → LLM)
 - [ ] **Step 13** — Plant identification from a photo
 - [ ] **Step 14** — Hardening, docs, CI
 - [ ] **Step 15** — Deployment

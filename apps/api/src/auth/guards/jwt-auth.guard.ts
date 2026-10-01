@@ -9,6 +9,12 @@ import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
  * Verifies the `Authorization: Bearer <accessToken>` header and puts the
  * decoded user on `req.user`. Registered globally (see AuthModule), so routes
  * are private by default and must opt out with `@Public()`.
+ *
+ * A `@Public()` route still gets an identity when the caller happens to send a
+ * valid token — that is what lets one endpoint serve both audiences
+ * (recommendations are personalised when signed in, popular picks when not)
+ * without a second URL. An invalid token on a public route is ignored rather
+ * than rejected.
  */
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
@@ -22,28 +28,34 @@ export class JwtAuthGuard implements CanActivate {
       context.getHandler(),
       context.getClass(),
     ]);
-    if (isPublic) return true;
-
     const request = context.switchToHttp().getRequest<Request & { user?: AuthenticatedUser }>();
     const token = this.extractToken(request);
+
+    if (isPublic) {
+      if (token) {
+        const payload = await this.decode(token);
+        if (payload) request.user = toUser(payload);
+      }
+      return true;
+    }
+
     if (!token) throw new UnauthorizedException('Missing bearer token');
 
-    let payload: JwtPayload;
+    const payload = await this.decode(token);
+    if (!payload) throw new UnauthorizedException('Invalid or expired token');
+
+    request.user = toUser(payload);
+    return true;
+  }
+
+  private async decode(token: string): Promise<JwtPayload | null> {
     try {
-      payload = await this.jwtService.verifyAsync<JwtPayload>(token, {
+      return await this.jwtService.verifyAsync<JwtPayload>(token, {
         secret: process.env.JWT_ACCESS_SECRET,
       });
     } catch {
-      throw new UnauthorizedException('Invalid or expired token');
+      return null;
     }
-
-    request.user = {
-      id: payload.sub,
-      email: payload.email,
-      role: payload.role,
-      vendorId: payload.vendorId,
-    };
-    return true;
   }
 
   private extractToken(request: Request): string | null {
@@ -53,3 +65,10 @@ export class JwtAuthGuard implements CanActivate {
     return scheme?.toLowerCase() === 'bearer' && token ? token : null;
   }
 }
+
+const toUser = (payload: JwtPayload): AuthenticatedUser => ({
+  id: payload.sub,
+  email: payload.email,
+  role: payload.role,
+  vendorId: payload.vendorId,
+});

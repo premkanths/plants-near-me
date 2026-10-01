@@ -1,5 +1,8 @@
 import { HealthCard } from '@/components/HealthCard';
+import { RecommendationGrid } from '@/components/recommendations/RecommendationGrid';
 import { fetchHealth } from '@/lib/api';
+import type { RecommendationResponse } from '@/lib/recommendation-types';
+import { serverApiSafe } from '@/lib/server-api';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,13 +14,23 @@ const roadmap = [
   { step: 5, title: 'Nearby nursery discovery', done: true },
   { step: 6, title: 'Search & filters (FTS + trigram)', done: true },
   { step: 7, title: 'Cart & multi-vendor checkout', done: true },
+  { step: 8, title: 'Order tracking in realtime', done: true },
+  { step: 9, title: 'Payments (Razorpay test mode + COD)', done: true },
+  { step: 10, title: 'Reviews & ratings', done: true },
+  { step: 11, title: 'Admin console & analytics', done: true },
+  { step: 12, title: 'Recommendations', done: true },
 ];
 
 export default async function Home() {
-  const health = await fetchHealth();
+  // The same endpoint serves both audiences: signed-in shoppers get picks
+  // shaped by their history, everyone else gets popular-and-nearby.
+  const [health, picks] = await Promise.all([
+    fetchHealth(),
+    serverApiSafe<RecommendationResponse>('/recommendations?limit=4'),
+  ]);
 
   return (
-    <main className="mx-auto flex max-w-3xl flex-col items-center gap-8 px-6 py-16">
+    <main className="mx-auto flex max-w-5xl flex-col items-center gap-8 px-6 py-16">
       <header className="text-center">
         <p className="mb-2 text-sm font-medium tracking-widest text-emerald-600 uppercase">
           🌱 E-PlantShopping 2.0
@@ -42,6 +55,20 @@ export default async function Home() {
           📍 Find nurseries near me
         </a>
       </div>
+
+      {picks && picks.items.length > 0 && (
+        <section className="w-full">
+          <h2 className="mb-1 text-sm font-semibold tracking-wider text-zinc-400 uppercase">
+            {picks.personalised ? 'Picked for you' : 'Popular right now'}
+          </h2>
+          <p className="mb-3 text-xs text-zinc-500">
+            {picks.personalised
+              ? `Based on ${picks.basedOn} plant${picks.basedOn === 1 ? '' : 's'} you have bought`
+              : 'Well rated, in stock and easy to keep alive'}
+          </p>
+          <RecommendationGrid items={picks.items} />
+        </section>
+      )}
 
       <HealthCard initial={health} />
 
