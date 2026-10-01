@@ -3,7 +3,9 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // `rawBody` keeps the untouched bytes around: Razorpay signs the exact
+  // payload it sent, so a re-serialised JSON object would not verify.
+  const app = await NestFactory.create(AppModule, { rawBody: true });
 
   app.setGlobalPrefix('api');
   app.useGlobalPipes(

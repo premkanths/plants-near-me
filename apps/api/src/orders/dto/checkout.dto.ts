@@ -68,10 +68,10 @@ export class CheckoutDto {
   notes?: string;
 
   /**
-   * Razorpay arrives in Step 9. Until then only COD is accepted, and the enum
-   * is validated now so the contract does not change under the web app later.
+   * `COD` places the order immediately. `ONLINE` reserves stock and leaves the
+   * order in PENDING_PAYMENT until Razorpay confirms the money.
    */
   @IsOptional()
-  @IsIn(['COD'], { message: 'Only cash on delivery is available at the moment' })
-  paymentMethod = 'COD' as const;
+  @IsIn(['COD', 'ONLINE'], { message: 'paymentMethod must be COD or ONLINE' })
+  paymentMethod: 'COD' | 'ONLINE' = 'COD';
 }

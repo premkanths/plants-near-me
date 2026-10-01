@@ -470,6 +470,83 @@ illegal transitions are refused, one shop cannot touch another's slice, a
 rejection restocks, the master status is derived correctly, and a replayed
 ticket is rejected.
 
+## Payments (Step 9)
+
+Two ways to pay, one order pipeline.
+
+| Method | What happens at checkout | When it becomes the shop's problem |
+| ------ | ------------------------ | ---------------------------------- |
+| **COD** | Order is `PLACED` immediately, payment row `COD`/`PENDING` | Straight away |
+| **ONLINE** | Stock is reserved, order waits in `PENDING_PAYMENT` | Only once a signed payment verifies |
+
+An unpaid online order is **invisible to the vendor** — it is absent from the
+queue, 404s on direct access, and cannot be advanced. That is the point of
+`PENDING_PAYMENT`: the stock is held, but no shop starts packing something
+nobody has paid for. A COD payment settles itself the moment the last shop
+marks its slice delivered.
+
+### Endpoints
+
+| Method | Path                               | Role     | Purpose                             |
+| ------ | ---------------------------------- | -------- | ----------------------------------- |
+| GET    | `/api/payments/config`             | public   | Public key id for the browser widget |
+| POST   | `/api/orders/:id/payment/confirm`  | CUSTOMER | Verify what the widget returned     |
+| POST   | `/api/orders/:id/payment/failed`   | CUSTOMER | Abandoned/declined → cancel + restock |
+| POST   | `/api/orders/:id/payment/simulate` | CUSTOMER | Demo-only; 400 once real keys exist |
+| POST   | `/api/payments/webhook`            | public   | Razorpay's server-to-server signal  |
+
+### What makes it trustworthy
+
+Nothing the browser says is believed. A confirmation is accepted only if
+`HMAC-SHA256(razorpay_order_id|razorpay_payment_id, key_secret)` matches, and
+the order id used is the one **we stored**, never one the client supplied. A
+failed check is recorded on the payment row rather than silently dropped.
+
+The webhook is verified against the **raw request body** — re-serialising the
+JSON would change the bytes and break the HMAC, which is why the app is
+bootstrapped with `rawBody: true`.
+
+Browser callback and webhook can both arrive. Both funnel into one guarded
+`updateMany ... where status = 'PENDING'`, so exactly one of them transitions
+the order and notifies the shops; the loser is a no-op. The same guard makes
+"payment failed" idempotent, so stock is never returned twice.
+
+### Running without Razorpay keys
+
+`RazorpayGateway` has two implementations, chosen at startup:
+
+- **live** — `RAZORPAY_KEY_ID` + `RAZORPAY_KEY_SECRET` are set; talks to the
+  real test-mode API and opens the hosted checkout widget.
+- **stub** — no keys; mints realistic `order_…` ids and signs with the *same*
+  HMAC. Every signature check, webhook and race test still runs for real — only
+  the HTTP call to Razorpay is faked.
+
+So the whole flow is demonstrable offline, and `/payment/simulate` (the only
+shortcut) refuses to work the instant real keys are configured.
+
+```bash
+# .env — leave blank to use the stub
+RAZORPAY_KEY_ID=
+RAZORPAY_KEY_SECRET=
+RAZORPAY_WEBHOOK_SECRET=
+```
+
+### Verify Step 9
+
+```bash
+npx jest --config apps/api/test/jest-e2e.json payments   # 25 e2e tests
+npx jest --config apps/api/package.json --rootDir apps/api src/payments  # 33 unit tests
+```
+
+The interesting ones: a forged signature leaves the order in
+`PENDING_PAYMENT`, a tampered webhook body is rejected, an abandoned payment
+returns every reserved unit, and a browser/webhook race notifies the shops once.
+
+> **Known trade-off:** the cart is emptied when the order is created, so a
+> customer who abandons payment gets a cancelled order rather than their cart
+> back. Restoring the cart on failure would be the kinder behaviour; it is not
+> built yet.
+
 ## Useful scripts
 
 | Command              | What it does                        |
@@ -510,7 +587,7 @@ See [`.env.example`](./.env.example). Step 1 only needs:
 - [x] **Step 6** — Search (full-text + `pg_trgm`)
 - [x] **Step 7** — Cart & multi-vendor checkout
 - [x] **Step 8** — Order status & realtime tracking
-- [ ] **Step 9** — Payments (Razorpay)
+- [x] **Step 9** — Payments (Razorpay test mode + COD)
 - [ ] **Step 10** — Reviews & ratings
 - [ ] **Step 11** — Admin panel & analytics
 - [ ] **Step 12** — Plant recommendation (rules → LLM)

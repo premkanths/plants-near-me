@@ -17,6 +17,7 @@ describe('VendorOrdersService', () => {
     product: { update: jest.Mock };
     vendorOrder: { update: jest.Mock; findMany: jest.Mock };
     masterOrder: { findUniqueOrThrow: jest.Mock; update: jest.Mock };
+    payment: { updateMany: jest.Mock };
   };
   let prisma: { $transaction: jest.Mock; vendorOrder: Record<string, jest.Mock> };
   let realtime: { emit: jest.Mock; emitToMany: jest.Mock };
@@ -62,6 +63,7 @@ describe('VendorOrdersService', () => {
         }),
         update: jest.fn(),
       },
+      payment: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
     };
 
     prisma = {
@@ -238,6 +240,27 @@ describe('VendorOrdersService', () => {
 
       expect(tx.masterOrder.update).toHaveBeenCalledWith(
         expect.objectContaining({ data: { status: 'PARTIALLY_FULFILLED' } }),
+      );
+    });
+
+    it('settles the cash-on-delivery payment once the order completes', async () => {
+      atStatus('OUT_FOR_DELIVERY', ['DELIVERED', 'DELIVERED']);
+      await service.updateStatus(VENDOR, ORDER, { status: 'DELIVERED' });
+
+      expect(tx.payment.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ provider: 'COD', status: 'PENDING' }),
+          data: expect.objectContaining({ status: 'PAID' }),
+        }),
+      );
+    });
+
+    it('marks the payment failed when every shop rejects', async () => {
+      atStatus('ORDERED', ['REJECTED', 'REJECTED']);
+      await service.updateStatus(VENDOR, ORDER, { status: 'REJECTED', reason: 'Closed' });
+
+      expect(tx.payment.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ status: 'FAILED' }) }),
       );
     });
 

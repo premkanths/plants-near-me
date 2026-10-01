@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { api, ApiError } from '@/lib/api-client';
 import type { Cart, Order } from '@/lib/cart-types';
+import { payWithRazorpay, type PaymentHandle } from '@/lib/payments';
 import { rupees } from '@/lib/vendor-types';
 
 interface Problem {
@@ -25,6 +26,7 @@ export function CheckoutForm({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [problems, setProblems] = useState<Problem[]>([]);
+  const [method, setMethod] = useState<'COD' | 'ONLINE'>('COD');
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -34,14 +36,24 @@ export function CheckoutForm({
 
     const form = new FormData(event.currentTarget);
     const payload = Object.fromEntries(
-      [...form.entries()].filter(([, value]) => value !== ''),
+      [...form.entries()].filter(([key, value]) => value !== '' && key !== 'paymentChoice'),
     ) as Record<string, string>;
 
     try {
-      const order = await api.post<Order>('/api/orders/checkout', {
+      const order = await api.post<Order & { payment?: PaymentHandle }>('/api/orders/checkout', {
         ...payload,
-        paymentMethod: 'COD',
+        paymentMethod: method,
       });
+
+      // An online order exists but is not live yet: it stays in
+      // PENDING_PAYMENT, holding stock, until the payment is confirmed.
+      if (method === 'ONLINE' && order.payment) {
+        await payWithRazorpay(order.id, order.payment, {
+          name: payload.recipientName,
+          phone: payload.recipientPhone,
+        });
+      }
+
       // Nothing is left to go back to — the cart is now an order.
       router.replace(`/orders/${order.id}?placed=1`);
     } catch (cause) {
@@ -135,12 +147,50 @@ export function CheckoutForm({
           </div>
         )}
 
+        <fieldset className="space-y-2">
+          <legend className="mb-1 text-xs font-semibold tracking-wider text-zinc-400 uppercase">
+            Payment
+          </legend>
+          {(
+            [
+              ['COD', 'Cash on delivery', 'Pay each shop at the door'],
+              ['ONLINE', 'Pay now (Razorpay)', 'Test mode — no real money moves'],
+            ] as const
+          ).map(([value, label, hint]) => (
+            <label
+              key={value}
+              className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 text-sm transition ${
+                method === value
+                  ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40'
+                  : 'border-zinc-200 hover:border-zinc-300 dark:border-zinc-800'
+              }`}
+            >
+              <input
+                type="radio"
+                name="paymentChoice"
+                value={value}
+                checked={method === value}
+                onChange={() => setMethod(value)}
+                className="mt-0.5 accent-emerald-600"
+              />
+              <span>
+                <span className="block font-medium">{label}</span>
+                <span className="block text-xs text-zinc-500">{hint}</span>
+              </span>
+            </label>
+          ))}
+        </fieldset>
+
         <button
           type="submit"
           disabled={submitting || !cart.checkoutReady}
           className="w-full rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:opacity-50"
         >
-          {submitting ? 'Placing your order…' : `Place order · ${rupees(cart.grandTotal)}`}
+          {submitting
+            ? method === 'ONLINE'
+              ? 'Taking you to payment…'
+              : 'Placing your order…'
+            : `${method === 'ONLINE' ? 'Pay' : 'Place order ·'} ${rupees(cart.grandTotal)}`}
         </button>
       </aside>
     </form>

@@ -21,10 +21,16 @@ export class VendorOrdersService {
     private readonly realtime: RealtimeService,
   ) {}
 
+  /**
+   * An order that has not been paid for yet is not the shop's problem, so
+   * everything here filters out master orders still in PENDING_PAYMENT.
+   */
+  private readonly paidOnly = { masterOrder: { status: { not: 'PENDING_PAYMENT' as const } } };
+
   /** Incoming orders for one shop, newest first. */
   async list(vendorId: string, status?: VendorOrderStatus) {
     const orders = await this.prisma.vendorOrder.findMany({
-      where: { vendorId, ...(status ? { status } : {}) },
+      where: { vendorId, ...this.paidOnly, ...(status ? { status } : {}) },
       orderBy: { createdAt: 'desc' },
       take: 100,
       select: this.selection(),
@@ -37,7 +43,7 @@ export class VendorOrdersService {
   async stats(vendorId: string) {
     const grouped = await this.prisma.vendorOrder.groupBy({
       by: ['status'],
-      where: { vendorId },
+      where: { vendorId, ...this.paidOnly },
       _count: { _all: true },
       _sum: { total: true },
     });
@@ -62,7 +68,7 @@ export class VendorOrdersService {
 
   async getOne(vendorId: string, id: string) {
     const order = await this.prisma.vendorOrder.findFirst({
-      where: { id, vendorId },
+      where: { id, vendorId, ...this.paidOnly },
       select: this.selection(),
     });
     if (!order) throw new NotFoundException('Order not found');
@@ -150,6 +156,10 @@ export class VendorOrdersService {
         select: { status: true, customerId: true, deliveryLat: true, deliveryLng: true },
       });
 
+      if (master.status === 'PENDING_PAYMENT') {
+        throw new BadRequestException('This order has not been paid for yet');
+      }
+
       const masterStatus = deriveMasterStatus(
         siblings.map((sibling) => sibling.status),
         master.status,
@@ -160,6 +170,21 @@ export class VendorOrdersService {
           where: { id: current.master_order_id },
           data: { status: masterStatus },
         });
+
+        // Cash is collected at the door, so a COD order settles the moment the
+        // last shop has delivered. Online orders were already paid up front.
+        if (masterStatus === 'COMPLETED' || masterStatus === 'PARTIALLY_FULFILLED') {
+          await tx.payment.updateMany({
+            where: { masterOrderId: current.master_order_id, provider: 'COD', status: 'PENDING' },
+            data: { status: 'PAID', paidAt: new Date() },
+          });
+        }
+        if (masterStatus === 'CANCELLED') {
+          await tx.payment.updateMany({
+            where: { masterOrderId: current.master_order_id, status: 'PENDING' },
+            data: { status: 'FAILED', failureReason: 'Every shop rejected the order' },
+          });
+        }
       }
 
       return {

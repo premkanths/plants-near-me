@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { PrismaService } from '../prisma/prisma.service';
+import { PaymentsService } from '../payments/payments.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import type { CheckoutDto } from './dto/checkout.dto';
 import { CheckoutConflictException, OrdersService } from './orders.service';
@@ -18,6 +19,7 @@ describe('OrdersService', () => {
     cartItem: { deleteMany: jest.Mock };
     masterOrder: { create: jest.Mock; findFirst: jest.Mock };
     vendorOrder: { create: jest.Mock };
+    payment: { create: jest.Mock };
     $queryRaw: jest.Mock;
     $executeRaw: jest.Mock;
   };
@@ -67,6 +69,7 @@ describe('OrdersService', () => {
         findFirst: jest.fn().mockResolvedValue(null),
       },
       vendorOrder: { create: jest.fn().mockResolvedValue({ id: 'vo-1' }) },
+      payment: { create: jest.fn().mockResolvedValue({ id: 'payment-1' }) },
       $queryRaw: jest.fn(),
       $executeRaw: jest.fn().mockResolvedValue(1),
     };
@@ -82,6 +85,14 @@ describe('OrdersService', () => {
         OrdersService,
         { provide: PrismaService, useValue: prisma },
         { provide: RealtimeService, useValue: { emit: jest.fn(), emitToMany: jest.fn() } },
+        {
+          provide: PaymentsService,
+          useValue: {
+            openProviderOrder: jest
+              .fn()
+              .mockResolvedValue({ provider: 'RAZORPAY', razorpayOrderId: 'order_abc' }),
+          },
+        },
       ],
     }).compile();
 

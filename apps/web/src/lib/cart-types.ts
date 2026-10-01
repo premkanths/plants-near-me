@@ -91,6 +91,12 @@ export interface Order {
   pincode: string;
   notes: string | null;
   placedAt: string;
+  payment: {
+    provider: 'RAZORPAY' | 'COD';
+    status: 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
+    amount: string;
+    paidAt: string | null;
+  } | null;
   vendorOrders: VendorOrder[];
 }
 

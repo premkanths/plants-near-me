@@ -8,6 +8,7 @@ import {
 import { randomBytes } from 'node:crypto';
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { PaymentsService } from '../payments/payments.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import type { CheckoutDto } from './dto/checkout.dto';
 
@@ -45,6 +46,7 @@ export class OrdersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly realtime: RealtimeService,
+    private readonly payments: PaymentsService,
   ) {}
 
   /**
@@ -63,6 +65,8 @@ export class OrdersService {
    * order, no stock leaked, cart untouched.
    */
   async checkout(userId: string, dto: CheckoutDto) {
+    const online = dto.paymentMethod === 'ONLINE';
+
     const placed = await this.prisma.$transaction(
       async (tx) => {
         const cart = await tx.cart.findUnique({
@@ -188,8 +192,10 @@ export class OrdersService {
           data: {
             orderNumber,
             customerId: userId,
-            // Payment lands in Step 9; a COD order is placed straight away.
-            status: 'PLACED',
+            // A COD order is live immediately. An online order is only a
+            // reservation until the money arrives, so it waits in
+            // PENDING_PAYMENT and the shops are not told about it yet.
+            status: online ? 'PENDING_PAYMENT' : 'PLACED',
             itemsTotal,
             deliveryFee: deliveryTotal,
             grandTotal: itemsTotal.plus(deliveryTotal),
@@ -240,7 +246,19 @@ export class OrdersService {
           });
         }
 
-        // ── 5. The cart has become an order ────────────────────────
+        // ── 5. Record how this order will be paid for ──────────────
+        // The provider is called *after* the commit: an HTTP round trip must
+        // never happen while we are holding row locks on the catalogue.
+        await tx.payment.create({
+          data: {
+            masterOrderId: master.id,
+            provider: online ? 'RAZORPAY' : 'COD',
+            status: 'PENDING',
+            amount: itemsTotal.plus(deliveryTotal),
+          },
+        });
+
+        // ── 6. The cart has become an order ────────────────────────
         await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
 
         this.logger.log(
@@ -257,8 +275,21 @@ export class OrdersService {
       },
     );
 
+    if (!placed) return placed;
+
+    // Online orders need a provider-side order before the browser can pay.
+    if (online) {
+      const providerOrder = await this.payments.openProviderOrder(
+        placed.id,
+        placed.grandTotal,
+        placed.orderNumber,
+      );
+      return { ...placed, payment: providerOrder };
+    }
+
     // Ring the bell in each shop's dashboard, once the transaction has
     // committed so nobody can fetch an order that does not exist yet.
+    // Unpaid online orders stay invisible until the payment is confirmed.
     if (placed) {
       for (const vendorOrder of placed.vendorOrders) {
         this.realtime.emit(RealtimeService.vendorRoom(vendorOrder.vendor.id), 'order.created', {
@@ -347,6 +378,7 @@ export class OrdersService {
         addressLine2: true,
         city: true,
         pincode: true,
+        payment: { select: { provider: true, status: true, amount: true, paidAt: true } },
         notes: true,
         placedAt: true,
         vendorOrders: {
@@ -384,6 +416,7 @@ export class OrdersService {
       itemsTotal: order.itemsTotal.toFixed(2),
       deliveryFee: order.deliveryFee.toFixed(2),
       grandTotal: order.grandTotal.toFixed(2),
+      payment: order.payment ? { ...order.payment, amount: order.payment.amount.toFixed(2) } : null,
       vendorOrders: order.vendorOrders.map((vendorOrder) => ({
         ...vendorOrder,
         itemsTotal: vendorOrder.itemsTotal.toFixed(2),

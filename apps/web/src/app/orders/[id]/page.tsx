@@ -140,7 +140,30 @@ export default async function OrderPage({
               <dd className="tabular-nums">{rupees(order.grandTotal)}</dd>
             </div>
           </dl>
-          <p className="mt-2 text-xs text-zinc-400">Cash on delivery</p>
+          {order.payment ? (
+            <p className="mt-2 text-xs text-zinc-400">
+              {order.payment.provider === 'COD' ? 'Cash on delivery' : 'Paid online (Razorpay)'} ·{' '}
+              <span
+                className={
+                  order.payment.status === 'PAID'
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : order.payment.status === 'FAILED'
+                      ? 'text-rose-600'
+                      : ''
+                }
+              >
+                {order.payment.status === 'PAID'
+                  ? 'paid'
+                  : order.payment.status === 'FAILED'
+                    ? 'not paid'
+                    : order.payment.provider === 'COD'
+                      ? 'due on delivery'
+                      : 'awaiting payment'}
+              </span>
+            </p>
+          ) : (
+            <p className="mt-2 text-xs text-zinc-400">Cash on delivery</p>
+          )}
         </div>
       </section>
     </main>
