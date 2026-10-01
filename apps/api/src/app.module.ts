@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
 import { CartModule } from './cart/cart.module';
 import { DiscoveryModule } from './discovery/discovery.module';
@@ -33,6 +34,7 @@ import { VendorsModule } from './vendors/vendors.module';
     CartModule,
     OrdersModule,
     ReviewsModule,
+    AdminModule,
     VendorsModule,
     ProductsModule,
     PlantsModule,

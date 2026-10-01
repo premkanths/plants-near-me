@@ -44,9 +44,15 @@ async function forward(request: Request, path: string[]): Promise<NextResponse> 
   }
 
   const text = await upstream.text();
+  // Content-Disposition has to survive the hop, otherwise a CSV export renders
+  // in the tab instead of downloading.
+  const disposition = upstream.headers.get('content-disposition');
   return new NextResponse(text, {
     status: upstream.status,
-    headers: { 'Content-Type': upstream.headers.get('content-type') ?? 'application/json' },
+    headers: {
+      'Content-Type': upstream.headers.get('content-type') ?? 'application/json',
+      ...(disposition ? { 'Content-Disposition': disposition } : {}),
+    },
   });
 }
 

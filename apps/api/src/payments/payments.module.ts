@@ -15,9 +15,14 @@ const gatewayProvider = {
   provide: RazorpayGateway,
   inject: [ConfigService],
   useFactory: (config: ConfigService): RazorpayGateway => {
-    const keyId = config.get<string>('RAZORPAY_KEY_ID');
-    const keySecret = config.get<string>('RAZORPAY_KEY_SECRET');
-    const webhookSecret = config.get<string>('RAZORPAY_WEBHOOK_SECRET') ?? 'dev_webhook_secret';
+    // `.env` ships these keys present but blank, so an empty string has to
+    // count as "not configured" — `??` alone would hand the gateway a secret
+    // of '' and every signature check would fail in a very confusing way.
+    const read = (key: string) => config.get<string>(key)?.trim() || undefined;
+
+    const keyId = read('RAZORPAY_KEY_ID');
+    const keySecret = read('RAZORPAY_KEY_SECRET');
+    const webhookSecret = read('RAZORPAY_WEBHOOK_SECRET') ?? 'dev_webhook_secret';
 
     if (keyId && keySecret) {
       return new LiveRazorpayGateway(keyId, keySecret, webhookSecret);

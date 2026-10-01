@@ -611,6 +611,57 @@ curl localhost:3000/api/reviews/shop/lalbagh-green-nursery         # avg + break
 In the browser: **Reviews** in the header lists orders waiting to be rated, and
 `/shops/<slug>` shows the shop's average, the star breakdown and per-plant stars.
 
+## Admin console (Step 11)
+
+`/admin` is gated twice: middleware keeps non-admins off the route, and every
+`/api/admin/*` endpoint carries `@Roles('ADMIN')` so the API is not relying on
+the UI to hide anything. Three tabs: dashboard, nurseries, users.
+
+| Method | Path                         | Does                                                          |
+| ------ | ---------------------------- | ------------------------------------------------------------- |
+| GET    | `/api/admin/overview`        | Headline counters (users, shops, listings, orders, revenue)   |
+| GET    | `/api/admin/analytics?days=` | Daily orders/revenue, top shops, pipeline split, best sellers |
+| GET    | `/api/admin/vendors`         | `?status=all\|pending\|approved\|suspended&q=` paged          |
+| PATCH  | `/api/admin/vendors/:id`     | `{ approved?, suspended? }`                                   |
+| GET    | `/api/admin/users`           | `?role=&q=` paged                                             |
+| PATCH  | `/api/admin/users/:id`       | `{ isActive }`                                                |
+| GET    | `/api/admin/export/:dataset` | CSV download — `orders`, `vendors`, `users`, `products`       |
+
+Charts are Recharts (`ComposedChart` for orders-vs-revenue, so counts and
+rupees get their own axes instead of one flattening the other).
+
+### Details that are easy to get wrong
+
+- **Zero-filled days.** The daily series is built with `generate_series`
+  left-joined onto orders, so a day with no trade still produces a point. Group
+  by `placed_at` alone and a line chart quietly joins across the gap, turning a
+  dead week into steady trade.
+- **Revenue means money that cleared** — `SUM(payments.amount) WHERE status =
+'PAID'`. Abandoned `PENDING_PAYMENT` checkouts are excluded from order counts
+  everywhere in this module.
+- **Moderation has teeth.** Suspending a shop removes it from discovery
+  immediately (there is an e2e test that suspends, expects `/api/shops/:slug`
+  to 404, then restores). Deactivating a user clears their refresh token hash,
+  so the session dies now rather than at token expiry.
+- **An admin cannot deactivate themselves** — 400, and the button is disabled.
+- **Re-approving keeps the original `approvedAt`**, so the audit trail records
+  when the shop was let in, not when a checkbox was last clicked.
+- **CSV hardening.** Fields starting `=`, `+`, `-` or `@` are prefixed with an
+  apostrophe: without it, a shop named `=HYPERLINK(...)` executes when an admin
+  opens the export in Excel. The file also carries a UTF-8 BOM and CRLF line
+  endings, and the users export contains no password or token columns.
+  `Content-Disposition` is forwarded by the BFF proxy, otherwise the download
+  renders in the tab.
+
+### Verify Step 11
+
+```bash
+curl -b admin.txt localhost:3000/api/admin/overview
+curl -b admin.txt 'localhost:3000/api/admin/analytics?days=7'
+curl -b admin.txt -D - -o orders.csv localhost:3000/api/admin/export/orders
+curl -b customer.txt localhost:3000/api/admin/overview      # 403
+```
+
 ## Useful scripts
 
 | Command              | What it does                        |
@@ -653,7 +704,7 @@ See [`.env.example`](./.env.example). Step 1 only needs:
 - [x] **Step 8** — Order status & realtime tracking
 - [x] **Step 9** — Payments (Razorpay test mode + COD)
 - [x] **Step 10** — Reviews & ratings
-- [ ] **Step 11** — Admin panel & analytics
+- [x] **Step 11** — Admin panel & analytics
 - [ ] **Step 12** — Plant recommendation (rules → LLM)
 - [ ] **Step 13** — Plant identification from a photo
 - [ ] **Step 14** — Hardening, docs, CI
