@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { ORDER_STATUS_LABEL, STATUS_TONE, type Order } from '@/lib/cart-types';
 import { serverApiSafe } from '@/lib/server-api';
 import { rupees } from '@/lib/vendor-types';
+import { formatDateTime } from '@/lib/datetime';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,9 +39,7 @@ export default async function OrderPage({
       <header className="mt-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">{order.orderNumber}</h1>
-          <p className="text-sm text-zinc-500">
-            Placed {new Date(order.placedAt).toLocaleString('en-IN')}
-          </p>
+          <p className="text-sm text-zinc-500">Placed {formatDateTime(order.placedAt)}</p>
         </div>
         <span
           className={`rounded-full px-3 py-1 text-xs font-medium ${STATUS_TONE[order.status] ?? 'bg-zinc-100 text-zinc-600'}`}

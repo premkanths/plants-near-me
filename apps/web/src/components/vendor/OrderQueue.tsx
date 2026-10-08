@@ -8,6 +8,7 @@ import { ORDER_STATUS_LABEL, STATUS_TONE } from '@/lib/cart-types';
 import { ACTION_LABEL, type VendorOrder, type VendorOrderStatus } from '@/lib/order-types';
 import type { OrderStatusEvent } from '@/lib/realtime';
 import { rupees } from '@/lib/vendor-types';
+import { formatDateTime } from '@/lib/datetime';
 
 /**
  * The shop's live order queue.
@@ -109,8 +110,8 @@ export function OrderQueue({ initial }: { initial: VendorOrder[] }) {
             <div>
               <p className="font-medium">{order.orderNumber}</p>
               <p className="text-xs text-zinc-500">
-                {new Date(order.createdAt).toLocaleString('en-IN')} ·{' '}
-                {order.masterOrder.recipientName} · {order.masterOrder.recipientPhone}
+                {formatDateTime(order.createdAt)} · {order.masterOrder.recipientName} ·{' '}
+                {order.masterOrder.recipientPhone}
               </p>
             </div>
             <span

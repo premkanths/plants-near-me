@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ORDER_STATUS_LABEL, STATUS_TONE, type OrderSummary } from '@/lib/cart-types';
 import { serverApiSafe } from '@/lib/server-api';
 import { rupees } from '@/lib/vendor-types';
+import { formatDateTime } from '@/lib/datetime';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,7 +37,7 @@ export default async function OrdersPage() {
                     {order.orderNumber}
                   </Link>
                   <p className="text-xs text-zinc-500">
-                    {new Date(order.placedAt).toLocaleString('en-IN')} · {order.vendorOrders.length}{' '}
+                    {formatDateTime(order.placedAt)} · {order.vendorOrders.length}{' '}
                     {order.vendorOrders.length === 1 ? 'shop' : 'shops'}
                   </p>
                 </div>

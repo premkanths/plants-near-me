@@ -1,5 +1,6 @@
 import type { ShopReviews } from '@/lib/review-types';
 import { Stars } from './Stars';
+import { formatDate } from '@/lib/datetime';
 
 /** A shop's rating summary plus its most recent reviews. */
 export function ReviewList({ data }: { data: ShopReviews }) {
@@ -50,7 +51,7 @@ export function ReviewList({ data }: { data: ShopReviews }) {
               <span className="font-medium">{review.author.name}</span>
               <span className="flex items-center gap-2 text-xs text-zinc-500">
                 <Stars value={review.rating} />
-                {new Date(review.createdAt).toLocaleDateString('en-IN')}
+                {formatDate(review.createdAt)}
               </span>
             </div>
             {review.product && (

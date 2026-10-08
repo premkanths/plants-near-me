@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import type { HealthResponse } from '@/lib/api';
+import { formatTime } from '@/lib/datetime';
 
 type State = { loading: boolean; data: HealthResponse | null; error: string | null };
 
@@ -80,7 +81,7 @@ export function HealthCard({ initial }: { initial: HealthResponse | null }) {
 
       {data && (
         <p className="mt-4 border-t border-zinc-100 pt-3 font-mono text-xs text-zinc-400 dark:border-zinc-800">
-          {data.service} v{data.version} · checked {new Date(data.timestamp).toLocaleTimeString()}
+          {data.service} v{data.version} · checked {formatTime(data.timestamp)}
         </p>
       )}
     </div>
