@@ -1,0 +1,46 @@
+import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { AdminModule } from './admin/admin.module';
+import { AuthModule } from './auth/auth.module';
+import { CartModule } from './cart/cart.module';
+import { DiscoveryModule } from './discovery/discovery.module';
+import { validateEnv } from './config/env.validation';
+import { HealthModule } from './health/health.module';
+import { PlantsModule } from './plants/plants.module';
+import { OrdersModule } from './orders/orders.module';
+import { PrismaModule } from './prisma/prisma.module';
+import { ProductsModule } from './products/products.module';
+import { PaymentsModule } from './payments/payments.module';
+import { RecommendationsModule } from './recommendations/recommendations.module';
+import { RealtimeModule } from './realtime/realtime.module';
+import { ReviewsModule } from './reviews/reviews.module';
+import { SearchModule } from './search/search.module';
+import { UploadsModule } from './uploads/uploads.module';
+import { VendorsModule } from './vendors/vendors.module';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: ['.env', '../../.env'],
+      validate: validateEnv,
+    }),
+    PrismaModule,
+    AuthModule,
+    HealthModule,
+    DiscoveryModule,
+    SearchModule,
+    RealtimeModule,
+    PaymentsModule,
+    CartModule,
+    OrdersModule,
+    ReviewsModule,
+    AdminModule,
+    RecommendationsModule,
+    VendorsModule,
+    ProductsModule,
+    PlantsModule,
+    UploadsModule,
+  ],
+})
+export class AppModule {}

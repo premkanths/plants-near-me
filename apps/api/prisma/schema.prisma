@@ -1,0 +1,437 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// E-PlantShopping 2.0 — domain model (Step 2)
+// PostgreSQL 16 + PostGIS. Connection URL lives in prisma.config.ts (Prisma 7).
+// ─────────────────────────────────────────────────────────────────────────────
+
+generator client {
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  extensions = [postgis, pg_trgm]
+}
+
+// ───────────────────────────── enums ─────────────────────────────
+
+enum Role {
+  CUSTOMER
+  VENDOR
+  ADMIN
+}
+
+enum CategoryScope {
+  VENDOR
+  PLANT
+}
+
+enum Sunlight {
+  FULL_SUN
+  PARTIAL_SUN
+  SHADE
+}
+
+enum WaterNeed {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum Difficulty {
+  EASY
+  MODERATE
+  HARD
+}
+
+enum Placement {
+  INDOOR
+  OUTDOOR
+  BOTH
+}
+
+enum MasterOrderStatus {
+  PENDING_PAYMENT
+  PLACED
+  PARTIALLY_FULFILLED
+  COMPLETED
+  CANCELLED
+}
+
+/// Lifecycle of one vendor's slice of a customer order.
+/// Allowed transitions are enforced in code (Step 8).
+enum VendorOrderStatus {
+  ORDERED
+  ACCEPTED
+  PACKING
+  READY_FOR_PICKUP
+  OUT_FOR_DELIVERY
+  DELIVERED
+  REJECTED
+}
+
+enum PaymentProvider {
+  RAZORPAY
+  COD
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+// ───────────────────────────── identity ─────────────────────────────
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  name         String
+  phone        String?
+  role         Role     @default(CUSTOMER)
+  isActive     Boolean  @default(true) @map("is_active")
+  /// SHA-256 hash of the current refresh token (rotated on every refresh, cleared on logout)
+  refreshTokenHash String? @map("refresh_token_hash")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  vendor  Vendor?
+  cart    Cart?
+  orders  MasterOrder[]
+  reviews Review[]
+
+  @@index([role])
+  @@map("users")
+}
+
+// ───────────────────────────── catalogue ─────────────────────────────
+
+model Vendor {
+  id          String  @id @default(uuid()) @db.Uuid
+  userId      String  @unique @map("user_id") @db.Uuid
+  name        String
+  slug        String  @unique
+  description String?
+  phone       String?
+
+  // Address
+  addressLine String? @map("address_line")
+  city        String  @default("Bengaluru")
+  state       String  @default("Karnataka")
+  pincode     String?
+
+  /// Readable mirror of `location`; a DB trigger keeps the geography column in sync.
+  latitude  Float @map("latitude")
+  longitude Float @map("longitude")
+  /// PostGIS geography point (SRID 4326). Prisma cannot read this type directly —
+  /// spatial queries use $queryRaw with ST_DWithin / ST_Distance (Step 5).
+  location  Unsupported("geography(Point, 4326)")?
+
+  deliveryRadiusKm Float   @default(5) @map("delivery_radius_km")
+  deliveryFee      Decimal @default(0) @map("delivery_fee") @db.Decimal(10, 2)
+  minOrderValue    Decimal @default(0) @map("min_order_value") @db.Decimal(10, 2)
+
+  ratingAvg   Float @default(0) @map("rating_avg")
+  ratingCount Int   @default(0) @map("rating_count")
+
+  approved   Boolean   @default(false)
+  approvedAt DateTime? @map("approved_at")
+  suspended  Boolean   @default(false)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categories   VendorCategory[]
+  products     Product[]
+  vendorOrders VendorOrder[]
+  reviews      Review[]
+
+  @@index([approved, suspended])
+  @@index([city])
+  @@map("vendors")
+}
+
+model Category {
+  id          String        @id @default(uuid()) @db.Uuid
+  name        String        @unique
+  slug        String        @unique
+  scope       CategoryScope
+  description String?
+  imageUrl    String?       @map("image_url")
+  createdAt   DateTime      @default(now()) @map("created_at")
+
+  vendors VendorCategory[]
+  plants  PlantCategory[]
+
+  @@index([scope])
+  @@map("categories")
+}
+
+model VendorCategory {
+  vendorId   String @map("vendor_id") @db.Uuid
+  categoryId String @map("category_id") @db.Uuid
+
+  vendor   Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([vendorId, categoryId])
+  @@index([categoryId])
+  @@map("vendor_categories")
+}
+
+/// Species-level information, shared by every vendor selling that plant.
+model Plant {
+  id             String  @id @default(uuid()) @db.Uuid
+  commonName     String  @map("common_name")
+  scientificName String  @unique @map("scientific_name")
+  slug           String  @unique
+  description    String?
+
+  sunlight   Sunlight
+  water      WaterNeed
+  difficulty Difficulty
+  placement  Placement
+
+  matureHeightCm Int?    @map("mature_height_cm")
+  petFriendly    Boolean @default(false) @map("pet_friendly")
+  airPurifying   Boolean @default(false) @map("air_purifying")
+  floweringPlant Boolean @default(false) @map("flowering_plant")
+  careNotes      String? @map("care_notes")
+  imageUrl       String? @map("image_url")
+
+  /// Weighted tsvector maintained by PostgreSQL (GENERATED ALWAYS ... STORED).
+  /// Never written by the app; queried through $queryRaw in SearchService.
+  searchVector Unsupported("tsvector")? @map("search_vector")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  categories PlantCategory[]
+  products   Product[]
+
+  @@index([sunlight, water, difficulty, placement])
+  @@map("plants")
+}
+
+model PlantCategory {
+  plantId    String @map("plant_id") @db.Uuid
+  categoryId String @map("category_id") @db.Uuid
+
+  plant    Plant    @relation(fields: [plantId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([plantId, categoryId])
+  @@index([categoryId])
+  @@map("plant_categories")
+}
+
+/// A specific vendor's listing of a plant (price, stock, pot size, photos).
+model Product {
+  id       String @id @default(uuid()) @db.Uuid
+  vendorId String @map("vendor_id") @db.Uuid
+  plantId  String @map("plant_id") @db.Uuid
+
+  title       String
+  description String?
+  price       Decimal  @db.Decimal(10, 2)
+  stock       Int      @default(0)
+  potSize     String?  @map("pot_size")
+  images      String[] @default([])
+  active      Boolean  @default(true)
+
+  /// Rolling aggregate of this listing's reviews (Step 10), recomputed on write.
+  ratingAvg   Float @default(0) @map("rating_avg")
+  ratingCount Int   @default(0) @map("rating_count")
+
+  /// See Plant.searchVector — generated column, read-only for Prisma.
+  searchVector Unsupported("tsvector")? @map("search_vector")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  vendor     Vendor      @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  plant      Plant       @relation(fields: [plantId], references: [id], onDelete: Restrict)
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+  reviews    Review[]
+
+  @@unique([vendorId, plantId, potSize])
+  @@index([vendorId, active])
+  @@index([plantId])
+  @@index([price])
+  @@index([ratingAvg])
+  @@map("products")
+}
+
+// ───────────────────────────── cart ─────────────────────────────
+
+model Cart {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @unique @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items CartItem[]
+
+  @@map("carts")
+}
+
+model CartItem {
+  id        String   @id @default(uuid()) @db.Uuid
+  cartId    String   @map("cart_id") @db.Uuid
+  productId String   @map("product_id") @db.Uuid
+  quantity  Int      @default(1)
+  addedAt   DateTime @default(now()) @map("added_at")
+
+  cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([cartId, productId])
+  @@index([productId])
+  @@map("cart_items")
+}
+
+// ───────────────────────────── orders ─────────────────────────────
+
+/// What the customer checks out: one payment, split into one VendorOrder per vendor.
+model MasterOrder {
+  id          String            @id @default(uuid()) @db.Uuid
+  orderNumber String            @unique @map("order_number")
+  customerId  String            @map("customer_id") @db.Uuid
+  status      MasterOrderStatus @default(PENDING_PAYMENT)
+
+  itemsTotal  Decimal @map("items_total") @db.Decimal(10, 2)
+  deliveryFee Decimal @default(0) @map("delivery_fee") @db.Decimal(10, 2)
+  grandTotal  Decimal @map("grand_total") @db.Decimal(10, 2)
+
+  // Delivery address snapshot (kept even if the customer later edits their address)
+  recipientName  String  @map("recipient_name")
+  recipientPhone String  @map("recipient_phone")
+  addressLine1   String  @map("address_line1")
+  addressLine2   String? @map("address_line2")
+  city           String
+  pincode        String
+  deliveryLat    Float?  @map("delivery_lat")
+  deliveryLng    Float?  @map("delivery_lng")
+  notes          String?
+
+  placedAt  DateTime @default(now()) @map("placed_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  customer     User          @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  vendorOrders VendorOrder[]
+  payment      Payment?
+
+  @@index([customerId, placedAt])
+  @@index([status])
+  @@map("master_orders")
+}
+
+/// One vendor's part of a MasterOrder — the unit vendors actually work with.
+model VendorOrder {
+  id            String            @id @default(uuid()) @db.Uuid
+  orderNumber   String            @unique @map("order_number")
+  masterOrderId String            @map("master_order_id") @db.Uuid
+  vendorId      String            @map("vendor_id") @db.Uuid
+  status        VendorOrderStatus @default(ORDERED)
+
+  itemsTotal  Decimal @map("items_total") @db.Decimal(10, 2)
+  deliveryFee Decimal @default(0) @map("delivery_fee") @db.Decimal(10, 2)
+  total       Decimal @db.Decimal(10, 2)
+
+  rejectionReason String?   @map("rejection_reason")
+  acceptedAt      DateTime? @map("accepted_at")
+  deliveredAt     DateTime? @map("delivered_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  masterOrder MasterOrder @relation(fields: [masterOrderId], references: [id], onDelete: Cascade)
+  vendor      Vendor      @relation(fields: [vendorId], references: [id], onDelete: Restrict)
+  items       OrderItem[]
+  reviews     Review[]
+
+  @@index([vendorId, status])
+  @@index([masterOrderId])
+  @@map("vendor_orders")
+}
+
+model OrderItem {
+  id            String @id @default(uuid()) @db.Uuid
+  vendorOrderId String @map("vendor_order_id") @db.Uuid
+  productId     String @map("product_id") @db.Uuid
+
+  // Snapshots so order history stays correct if the listing changes later
+  productTitle String  @map("product_title")
+  plantName    String  @map("plant_name")
+  unitPrice    Decimal @map("unit_price") @db.Decimal(10, 2)
+  quantity     Int
+  lineTotal    Decimal @map("line_total") @db.Decimal(10, 2)
+
+  vendorOrder VendorOrder @relation(fields: [vendorOrderId], references: [id], onDelete: Cascade)
+  product     Product     @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([vendorOrderId])
+  @@index([productId])
+  @@map("order_items")
+}
+
+model Payment {
+  id            String          @id @default(uuid()) @db.Uuid
+  masterOrderId String          @unique @map("master_order_id") @db.Uuid
+  provider      PaymentProvider @default(RAZORPAY)
+  status        PaymentStatus   @default(PENDING)
+  amount        Decimal         @db.Decimal(10, 2)
+  currency      String          @default("INR")
+
+  razorpayOrderId   String? @unique @map("razorpay_order_id")
+  razorpayPaymentId String? @unique @map("razorpay_payment_id")
+  razorpaySignature String? @map("razorpay_signature")
+  failureReason     String? @map("failure_reason")
+
+  paidAt    DateTime? @map("paid_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  masterOrder MasterOrder @relation(fields: [masterOrderId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@map("payments")
+}
+
+// ───────────────────────────── reviews ─────────────────────────────
+
+/// A review always targets a vendor; `productId` narrows it to one listing.
+/// Only customers with a DELIVERED VendorOrder may post one (enforced in Step 10).
+model Review {
+  id            String  @id @default(uuid()) @db.Uuid
+  authorId      String  @map("author_id") @db.Uuid
+  vendorId      String  @map("vendor_id") @db.Uuid
+  productId     String? @map("product_id") @db.Uuid
+  vendorOrderId String  @map("vendor_order_id") @db.Uuid
+
+  rating  Int
+  comment String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  author      User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  vendor      Vendor      @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  product     Product?    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  vendorOrder VendorOrder @relation(fields: [vendorOrderId], references: [id], onDelete: Cascade)
+
+  /// Covers per-plant reviews. Shop-level reviews (product_id IS NULL) are not
+  /// caught by this, because Postgres treats NULLs as distinct — a partial
+  /// unique index in migration 20261001130000 enforces one of those per order.
+  @@unique([authorId, vendorOrderId, productId])
+  @@index([vendorId, createdAt])
+  @@index([productId])
+  @@map("reviews")
+}
