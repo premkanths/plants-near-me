@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint-test-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies (workspaces)
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Run unit & e2e tests
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+        run: |
+          # start a Postgres container for tests
+          docker compose -f docker-compose.yml up -d db
+          # wait for DB to be ready
+          sleep 10
+          npm run test -w @eplant/api
+          npm run test:e2e -w @eplant/api
+          docker compose -f docker-compose.yml down db
+
+      - name: Build Docker images
+        run: |
+          docker build -t ghcr.io/${{ github.repository_owner }}/eplant-web:latest -f apps/web/Dockerfile .
+          docker build -t ghcr.io/${{ github.repository_owner }}/eplant-api:latest -f apps/api/Dockerfile .
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push Docker images
+        run: |
+          docker push ghcr.io/${{ github.repository_owner }}/eplant-web:latest
+          docker push ghcr.io/${{ github.repository_owner }}/eplant-api:latest
+
+      - name: Deploy hint (optional)
+        run: echo "🚀 Images are pushed. Deploy them with your favourite platform (Fly.io, Render, Railway, etc.)."

@@ -14,10 +14,18 @@ export function AddToCartButton({
   productId,
   disabled = false,
   compact = false,
+  title,
+  price,
+  vendorName,
+  stock,
 }: {
   productId: string;
   disabled?: boolean;
   compact?: boolean;
+  title?: string;
+  price?: string;
+  vendorName?: string;
+  stock?: number;
 }) {
   const router = useRouter();
   const [state, setState] = useState<'idle' | 'saving' | 'added'>('idle');
@@ -52,19 +60,19 @@ export function AddToCartButton({
         type="button"
         onClick={add}
         disabled={disabled || state === 'saving'}
-        className={`rounded-lg px-3 py-1.5 text-xs font-medium transition disabled:opacity-50 ${
+        className={`rounded-xl px-3.5 py-2 text-xs font-bold transition transform duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${
           state === 'added'
-            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
-            : 'bg-emerald-600 text-white hover:bg-emerald-700'
+            ? 'bg-emerald-100 text-emerald-800 shadow-sm border border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800'
+            : 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-sm shadow-emerald-600/20 hover:from-emerald-700 hover:to-teal-700 hover:shadow-md'
         } ${compact ? '' : 'w-full'}`}
       >
         {disabled
           ? 'Out of stock'
           : state === 'saving'
-            ? 'Adding…'
+            ? 'Adding to cart…'
             : state === 'added'
               ? '✓ In your cart'
-              : 'Add to cart'}
+              : 'Add to cart 🛒'}
       </button>
 
       {error && <p className="mt-1 text-[11px] text-rose-600">{error}</p>}

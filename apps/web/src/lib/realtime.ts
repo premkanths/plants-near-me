@@ -64,7 +64,8 @@ export function realtimeOrigin(): string {
 export async function connectRealtime(): Promise<Socket> {
   const { ticket } = await api.post<{ ticket: string }>('/api/realtime/ticket', {});
 
-  return io(`${realtimeOrigin()}/realtime`, {
+  // Cast options to any to satisfy socket.io-client manager typings across bundlers
+  return (io as any)(`${realtimeOrigin()}/realtime`, {
     transports: ['websocket', 'polling'],
     auth: { ticket },
     forceNew: true,
