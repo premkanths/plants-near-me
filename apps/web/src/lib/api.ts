@@ -2,10 +2,16 @@
  * Browser code uses relative URLs so requests are proxied by Next.js (see next.config.ts).
  * Server components need an absolute URL, hence API_BASE_URL.
  */
+function cleanBase(val?: string): string {
+  let s = (val ?? '').trim().replace(/\/+$/, '');
+  if (s.endsWith('/api')) s = s.slice(0, -4);
+  return s;
+}
+
 export const apiBaseUrl =
   typeof window === 'undefined'
-    ? (process.env.API_BASE_URL ?? 'http://localhost:3001')
-    : (process.env.NEXT_PUBLIC_API_BASE_URL ?? '');
+    ? cleanBase(process.env.API_BASE_URL ?? 'http://localhost:3001')
+    : cleanBase(process.env.NEXT_PUBLIC_API_BASE_URL ?? '');
 
 export interface HealthResponse {
   status: 'ok' | 'degraded';

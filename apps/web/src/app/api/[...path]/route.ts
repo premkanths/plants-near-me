@@ -9,11 +9,19 @@ import { clearSession, getAccessToken, getRefreshToken, writeSession } from '@/l
  * - the access token is read from an httpOnly cookie and injected here
  * - on a 401 the refresh token is used once, cookies are rotated, request retried
  */
-const API = process.env.API_BASE_URL ?? 'http://localhost:3001';
+function getApiBaseUrl(): string {
+  let base = (process.env.API_BASE_URL ?? 'http://localhost:3001').trim();
+  base = base.replace(/\/+$/, '');
+  if (base.endsWith('/api')) {
+    base = base.slice(0, -4);
+  }
+  return base;
+}
 
 async function forward(request: Request, path: string[]): Promise<NextResponse> {
   const url = new URL(request.url);
-  const target = `${API}/api/${path.join('/')}${url.search}`;
+  const base = getApiBaseUrl();
+  const target = `${base}/api/${path.join('/')}${url.search}`;
   const body = ['GET', 'HEAD'].includes(request.method) ? undefined : await request.text();
 
   const call = async (token?: string): Promise<Response> =>
