@@ -93,13 +93,13 @@ export class UploadsService {
   }
 
   private async toLocalDisk(vendorId: string, file: Express.Multer.File): Promise<UploadedImage> {
-    const extension =
-      {
-        'image/jpeg': 'jpg',
-        'image/png': 'png',
-        'image/webp': 'webp',
-        'image/avif': 'avif',
-      }[file.mimetype] ?? 'bin';
+    const mimeMap: Record<string, string> = {
+      'image/jpeg': 'jpg',
+      'image/png': 'png',
+      'image/webp': 'webp',
+      'image/avif': 'avif',
+    };
+    const extension = mimeMap[file.mimetype] ?? 'bin';
 
     const filename = `${randomUUID()}.${extension}`;
     const directory = join(LOCAL_UPLOAD_DIR, vendorId);
