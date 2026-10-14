@@ -8,6 +8,8 @@ function cleanDatabaseUrl(raw?: string): string {
   if ((url.startsWith('"') && url.endsWith('"')) || (url.startsWith("'") && url.endsWith("'"))) {
     url = url.slice(1, -1).trim();
   }
+  // Strip square brackets around password if accidentally kept: :[password]@ -> :password@
+  url = url.replace(/:\[([^\]]+)\]@/, ':$1@');
   return url;
 }
 
