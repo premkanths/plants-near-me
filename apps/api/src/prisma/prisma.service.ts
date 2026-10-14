@@ -2,6 +2,15 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../generated/prisma/client';
 
+function cleanDatabaseUrl(raw?: string): string {
+  if (!raw) return '';
+  let url = raw.trim();
+  if ((url.startsWith('"') && url.endsWith('"')) || (url.startsWith("'") && url.endsWith("'"))) {
+    url = url.slice(1, -1).trim();
+  }
+  return url;
+}
+
 /**
  * Prisma 7 talks to PostgreSQL through a driver adapter (node-postgres),
  * so there is no Rust query engine binary to ship.
@@ -13,7 +22,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   constructor() {
     super({
       adapter: new PrismaPg({
-        connectionString: process.env.DATABASE_URL ?? '',
+        connectionString: cleanDatabaseUrl(process.env.DATABASE_URL),
       }),
     });
   }
