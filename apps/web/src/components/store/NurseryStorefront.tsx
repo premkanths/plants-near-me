@@ -72,7 +72,17 @@ export function NurseryStorefront({ shop, reviews }: Props) {
     <div className="w-full pb-16">
       {/* ── Breadcrumb & Back ───────────────────────────────── */}
       <div className="mx-auto max-w-6xl px-4 py-3 sm:px-6">
-        <div className="flex items-center gap-2 text-xs text-zinc-500">
+        <div className="flex items-center gap-2.5 text-xs text-zinc-500">
+          <button
+            type="button"
+            onClick={() => typeof window !== 'undefined' && window.history.back()}
+            title="Go back one step"
+            className="flex items-center gap-1 rounded-lg border border-emerald-900/10 bg-white/90 px-2.5 py-1 font-bold text-zinc-700 shadow-2xs transition hover:border-emerald-500/40 hover:bg-emerald-50 hover:text-emerald-700 dark:border-emerald-500/20 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-emerald-950/60 dark:hover:text-emerald-400"
+          >
+            <span>&lt;</span>
+            <span>Back</span>
+          </button>
+          <span className="text-zinc-300 dark:text-zinc-700">|</span>
           <Link href="/" className="hover:text-emerald-700 transition">Home</Link>
           <span>/</span>
           <Link href="/nearby" className="hover:text-emerald-700 transition">Nurseries</Link>
