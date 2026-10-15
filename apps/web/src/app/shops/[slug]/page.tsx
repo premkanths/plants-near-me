@@ -5,7 +5,9 @@ import type { ShopReviews } from '@/lib/review-types';
 import { serverApiSafe } from '@/lib/server-api';
 import { NurseryStorefront } from '@/components/store/NurseryStorefront';
 
-export const dynamic = 'force-dynamic';
+import { FALLBACK_SHOPS } from '@/lib/fallback-shops';
+
+export const revalidate = 60;
 
 export async function generateMetadata({
   params,
@@ -13,8 +15,13 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const shop = await serverApiSafe<ShopDetail>(`/shops/${encodeURIComponent(slug)}`);
-  if (!shop) return { title: 'Nursery Not Found · E-PlantShopping' };
+  const shop =
+    (await serverApiSafe<ShopDetail>(`/shops/${encodeURIComponent(slug)}`, {
+      isPublic: true,
+      revalidate: 60,
+    })) ?? FALLBACK_SHOPS[slug];
+
+  if (!shop) return { title: 'Nursery · E-PlantShopping' };
 
   return {
     title: `${shop.name} · Local Nursery & Plants · E-PlantShopping`,
@@ -33,11 +40,20 @@ export default async function ShopPage({
   const { lat, lng } = await searchParams;
 
   const point = lat && lng ? `?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}` : '';
-  const shop = await serverApiSafe<ShopDetail>(`/shops/${encodeURIComponent(slug)}${point}`);
+  let shop = await serverApiSafe<ShopDetail>(`/shops/${encodeURIComponent(slug)}${point}`, {
+    isPublic: true,
+    revalidate: 60,
+  });
+
+  if (!shop) {
+    shop = FALLBACK_SHOPS[slug] ?? null;
+  }
+
   if (!shop) notFound();
 
   const reviews = await serverApiSafe<ShopReviews>(
     `/reviews/shop/${encodeURIComponent(slug)}?pageSize=10`,
+    { isPublic: true, revalidate: 60 },
   );
 
   return (

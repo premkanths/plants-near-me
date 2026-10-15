@@ -23,11 +23,19 @@ export interface HealthResponse {
 }
 
 export async function fetchHealth(): Promise<HealthResponse | null> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 2500);
+
   try {
-    const res = await fetch(`${apiBaseUrl}/api/health`, { cache: 'no-store' });
+    const res = await fetch(`${apiBaseUrl}/api/health`, {
+      next: { revalidate: 30 },
+      signal: controller.signal,
+    });
     if (!res.ok) return null;
     return (await res.json()) as HealthResponse;
   } catch {
     return null;
+  } finally {
+    clearTimeout(timeoutId);
   }
 }

@@ -6,7 +6,72 @@ import { fetchHealth } from '@/lib/api';
 import type { RecommendationResponse } from '@/lib/recommendation-types';
 import { serverApiSafe } from '@/lib/server-api';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 60;
+
+const POPULAR_FALLBACK_PICKS: RecommendationResponse = {
+  strategy: 'popular',
+  personalised: false,
+  basedOn: 0,
+  llm: false,
+  items: [
+    {
+      productId: 'monstera-deliciosa-curated',
+      title: 'Monstera Deliciosa (Swiss Cheese Plant)',
+      price: '580',
+      stock: 25,
+      imageUrl: 'https://images.unsplash.com/photo-1614594975525-e45190c55d0b?auto=format&fit=crop&w=600&q=80',
+      ratingAvg: 4.9,
+      ratingCount: 38,
+      plant: { id: 'p1', name: 'Monstera Deliciosa', scientificName: 'Monstera deliciosa' },
+      vendor: { id: 'v1', name: 'Indiranagar Urban Jungle', slug: 'indiranagar-urban-jungle' },
+      distanceKm: 2.4,
+      score: 98,
+      reasons: ['Top trending indoor statement foliage in Bengaluru apartments'],
+    },
+    {
+      productId: 'snake-plant-curated',
+      title: 'Sansevieria Trifasciata (Snake Plant)',
+      price: '340',
+      stock: 40,
+      imageUrl: 'https://images.unsplash.com/photo-1593691509543-c55fb32e7355?auto=format&fit=crop&w=600&q=80',
+      ratingAvg: 4.8,
+      ratingCount: 42,
+      plant: { id: 'p2', name: 'Snake Plant', scientificName: 'Sansevieria trifasciata' },
+      vendor: { id: 'v2', name: 'Lalbagh Green Nursery', slug: 'lalbagh-green-nursery' },
+      distanceKm: 3.1,
+      score: 95,
+      reasons: ['NASA-verified air purifying succulent, thrives in indirect light'],
+    },
+    {
+      productId: 'fiddle-leaf-fig-curated',
+      title: 'Ficus Lyrata (Fiddle Leaf Fig)',
+      price: '1150',
+      stock: 12,
+      imageUrl: 'https://images.unsplash.com/photo-1545241047-6083a3684587?auto=format&fit=crop&w=600&q=80',
+      ratingAvg: 4.7,
+      ratingCount: 29,
+      plant: { id: 'p3', name: 'Fiddle Leaf Fig', scientificName: 'Ficus lyrata' },
+      vendor: { id: 'v3', name: 'Whitefield Plant Studio', slug: 'whitefield-plant-studio' },
+      distanceKm: 5.2,
+      score: 92,
+      reasons: ['Biophilic architectural plant favored for living spaces'],
+    },
+    {
+      productId: 'peace-lily-curated',
+      title: 'Spathiphyllum (Peace Lily in Ceramic Pot)',
+      price: '420',
+      stock: 30,
+      imageUrl: 'https://images.unsplash.com/photo-1593482892290-f54927ae1bf6?auto=format&fit=crop&w=600&q=80',
+      ratingAvg: 4.6,
+      ratingCount: 31,
+      plant: { id: 'p4', name: 'Peace Lily', scientificName: 'Spathiphyllum wallisii' },
+      vendor: { id: 'v4', name: 'Jayanagar Flower Bazaar', slug: 'jayanagar-flower-bazaar' },
+      distanceKm: 4.0,
+      score: 90,
+      reasons: ['Glossy dark leaves with pure white spathe blooms'],
+    },
+  ],
+};
 
 const FEATURED_NURSERIES = [
   {
@@ -134,8 +199,13 @@ const CARE_TIPS = [
 export default async function Home() {
   const [health, picks] = await Promise.all([
     fetchHealth(),
-    serverApiSafe<RecommendationResponse>('/recommendations?limit=8'),
+    serverApiSafe<RecommendationResponse>('/recommendations?limit=8', {
+      isPublic: true,
+      revalidate: 60,
+    }),
   ]);
+
+  const displayPicks = picks && picks.items.length > 0 ? picks : POPULAR_FALLBACK_PICKS;
 
   return (
     <main className="flex flex-col items-center min-h-screen bg-[#fafcf9] dark:bg-[#090e0b]">
@@ -389,7 +459,7 @@ export default async function Home() {
       </section>
 
       {/* ── RECOMMENDATIONS & POPULAR PLANTS ───────────────────── */}
-      {picks && picks.items.length > 0 && (
+      {displayPicks && displayPicks.items.length > 0 && (
         <section className="mx-auto w-full max-w-6xl px-6 py-12">
           <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
@@ -397,11 +467,11 @@ export default async function Home() {
                 🌿 Handpicked Selections
               </div>
               <h2 className="text-2xl font-black tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-3xl mt-1">
-                {picks.personalised ? '🌿 Curated Specially For You' : '🌿 Popular Right Now in Bengaluru'}
+                {displayPicks.personalised ? '🌿 Curated Specially For You' : '🌿 Popular Right Now in Bengaluru'}
               </h2>
               <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                {picks.personalised
-                  ? `Based on ${picks.basedOn} plant${picks.basedOn === 1 ? '' : 's'} in your order history`
+                {displayPicks.personalised
+                  ? `Based on ${displayPicks.basedOn} plant${displayPicks.basedOn === 1 ? '' : 's'} in your order history`
                   : 'Healthy, root-checked stock from verified local nurseries with live courier delivery'}
               </p>
             </div>
@@ -412,7 +482,7 @@ export default async function Home() {
               View entire catalogue →
             </Link>
           </div>
-          <RecommendationGrid items={picks.items} />
+          <RecommendationGrid items={displayPicks.items} />
         </section>
       )}
 

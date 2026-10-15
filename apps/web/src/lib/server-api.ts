@@ -14,26 +14,46 @@ function getApiUrl(path: string): string {
   return `${base}/api${cleanPath}`;
 }
 
-export async function serverApi<T>(path: string): Promise<T> {
-  const token = await getAccessToken();
-  const url = getApiUrl(path);
-  const response = await fetch(url, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-    cache: 'no-store',
-  });
+export interface ServerApiOptions {
+  isPublic?: boolean;
+  revalidate?: number;
+  timeoutMs?: number;
+}
 
-  if (!response.ok) {
-    const body = (await response.json().catch(() => ({}))) as { message?: string };
-    throw new Error(body.message ?? `API request failed (${response.status})`);
+export async function serverApi<T>(path: string, options?: ServerApiOptions): Promise<T> {
+  const isPublic = options?.isPublic ?? false;
+  const token = isPublic ? undefined : await getAccessToken();
+  const url = getApiUrl(path);
+
+  const controller = new AbortController();
+  const timeoutMs = options?.timeoutMs ?? (isPublic ? 4000 : 7000);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      signal: controller.signal,
+      ...(token
+        ? { cache: 'no-store' as const }
+        : { next: { revalidate: options?.revalidate ?? 60 } }),
+    });
+
+    if (!response.ok) {
+      const body = (await response.json().catch(() => ({}))) as { message?: string };
+      throw new Error(body.message ?? `API request failed (${response.status})`);
+    }
+    return (await response.json()) as T;
+  } finally {
+    clearTimeout(timeoutId);
   }
-  return (await response.json()) as T;
 }
 
 /** Same as serverApi but returns null instead of throwing — for optional data. */
-export async function serverApiSafe<T>(path: string): Promise<T | null> {
+export async function serverApiSafe<T>(path: string, options?: ServerApiOptions): Promise<T | null> {
   try {
-    return await serverApi<T>(path);
+    return await serverApi<T>(path, options);
   } catch {
     return null;
   }
 }
+
