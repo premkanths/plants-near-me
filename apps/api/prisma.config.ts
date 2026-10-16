@@ -2,7 +2,7 @@ import { config } from 'dotenv';
 
 // Single source of truth for env vars: the repo-root .env (falls back to apps/api/.env)
 config({ path: ['.env', '../../.env'], quiet: true });
-import { defineConfig, env } from 'prisma/config';
+import { defineConfig } from 'prisma/config';
 
 /**
  * Prisma 7 keeps the connection URL out of schema.prisma.
@@ -16,6 +16,6 @@ export default defineConfig({
     seed: 'ts-node prisma/seed.ts',
   },
   datasource: {
-    url: env('DATABASE_URL'),
+    url: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/postgres',
   },
 });

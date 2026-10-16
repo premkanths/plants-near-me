@@ -9,6 +9,11 @@ on:
 jobs:
   lint-test-build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
     defaults:
       run:
         working-directory: ./

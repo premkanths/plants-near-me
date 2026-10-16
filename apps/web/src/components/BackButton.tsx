@@ -1,19 +1,12 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
 
 export function BackButton() {
   const router = useRouter();
   const pathname = usePathname();
-  const [canGoBack, setCanGoBack] = useState(false);
 
-  useEffect(() => {
-    // Only show back button when not on the homepage
-    setCanGoBack(pathname !== '/');
-  }, [pathname]);
-
-  if (!canGoBack) return null;
+  if (pathname === '/') return null;
 
   function handleBack() {
     if (typeof window !== 'undefined' && window.history.length > 1) {

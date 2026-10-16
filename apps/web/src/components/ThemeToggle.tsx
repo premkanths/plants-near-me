@@ -11,6 +11,21 @@ export function ThemeToggle() {
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  function applyTheme(mode: ThemeMode) {
+    const isDark =
+      mode === 'dark' ||
+      (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+      document.documentElement.classList.remove('light');
+    } else {
+      document.documentElement.classList.remove('dark');
+      document.documentElement.classList.add('light');
+    }
+    setResolvedDark(isDark);
+  }
+
   // Initialize theme from localStorage & system preference
   useEffect(() => {
     setMounted(true);
@@ -40,21 +55,6 @@ export function ThemeToggle() {
     mediaQuery.addEventListener('change', handleChange);
     return () => mediaQuery.removeEventListener('change', handleChange);
   }, [theme, mounted]);
-
-  function applyTheme(mode: ThemeMode) {
-    const isDark =
-      mode === 'dark' ||
-      (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-
-    if (isDark) {
-      document.documentElement.classList.add('dark');
-      document.documentElement.classList.remove('light');
-    } else {
-      document.documentElement.classList.remove('dark');
-      document.documentElement.classList.add('light');
-    }
-    setResolvedDark(isDark);
-  }
 
   function handleSelect(mode: ThemeMode) {
     setTheme(mode);
